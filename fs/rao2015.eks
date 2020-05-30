@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('rao:2015')
+entry.author = eikosi.AuthorList([['Rahul', 'Rao'], ['Damon', 'Honnery']])
+entry.title = 'A simplified mechanism for the prediction of the ion current during methane oxidation in engine-like conditions'
+entry.journal = 'Combustion and Flame'
+entry.year = 2015
+entry.volume = 162
+entry.pages = '2928 - 2936'
+

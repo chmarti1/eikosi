@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('karrer:2010')
+entry.author = eikosi.AuthorList([['Maxime', 'Karrer'], ['Marc', 'Bellenoue'], ['Sergei', 'Labuda'], ['Julien', 'Sotton'], ['Maxime', 'Makarov']])
+entry.title = 'Electrical Probe Diagnostics for the Laminar Flame Quenching Distance'
+entry.journal = 'Experimental Thermal and Fluid Science'
+entry.year = 2010
+entry.volume = 34
+entry.pages = '131-141'
+

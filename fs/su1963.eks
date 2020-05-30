@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('su:1963')
+entry.author = eikosi.AuthorList([['C.', 'H.', 'Su'], ['S.', 'H.', 'Lam']])
+entry.title = 'Continuum Theory of Spherical Electrostatic Probes'
+entry.journal = 'The Physics of Fluids'
+entry.year = 1963
+entry.volume = 6
+entry.number = 10
+entry.month = 'October'
+

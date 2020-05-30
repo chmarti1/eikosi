@@ -1,0 +1,12 @@
+import eikosi
+
+entry = eikosi.ProceedingsEntry('knewstubb:1958')
+entry.author = eikosi.AuthorList([['P.', 'F.', 'Knewstubb'], ['T.', 'M.', 'Sugden']])
+entry.title = 'Mass spectrometry of the ions present in hydrocarbon flames'
+entry.booktitle = 'Seventh Symposium on Combustion'
+entry.year = 1958
+entry.volume = 7
+entry.number = 1
+entry.publisher = 'Combustion Institute'
+entry.pages = '247-253'
+

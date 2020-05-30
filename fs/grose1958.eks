@@ -1,0 +1,12 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('grose:1958')
+entry.author = eikosi.AuthorList([['A.', 'V.', 'Grose'], ['J.', 'B.', 'Conway']])
+entry.title = 'Combustion of metals in oxygen'
+entry.journal = 'Industrial and Engineering Chemistry'
+entry.year = 1958
+entry.volume = 50
+entry.number = 4
+entry.month = 'April'
+entry.pages = '663-672'
+

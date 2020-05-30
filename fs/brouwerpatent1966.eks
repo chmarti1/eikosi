@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.PatentEntry('brouwer:patent:1966')
+entry.author = eikosi.AuthorList([['Frans', 'Brouwer']])
+entry.title = 'Height control transducer'
+entry.number = '3,290,032'
+entry.nationality = 'US'
+entry.year = 1966
+entry.month = 'December'
+entry.note = 'Stewart Warner Corp 266/23'
+

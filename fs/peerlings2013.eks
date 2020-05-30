@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('peerlings:2013')
+entry.author = eikosi.AuthorList([['Luck', 'B.W.', 'Peerlings'], ['Manohar'], ['Viktor', 'N.', 'Komilov'], ['Philip', '{de Goey}']])
+entry.title = 'Flame ion generation rate as a measure of the flame thermo-acoustic response'
+entry.journal = 'Combustion and Flame'
+entry.year = 2013
+entry.volume = 160
+entry.pages = '2490-2496'
+entry.doi = '10.1016/j.combustflame.2013.05.014'
+

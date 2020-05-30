@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('rao:2017')
+entry.author = eikosi.AuthorList([['Rahul', 'Rao'], ['Damon', 'Honnery']])
+entry.title = 'A study of the relationship between {NOx} and the ion current in a direct-injection diesel engine'
+entry.journal = 'Combustion and Flame'
+entry.year = 2017
+entry.volume = 176
+entry.pages = '309-317'
+

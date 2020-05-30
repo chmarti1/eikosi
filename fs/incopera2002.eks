@@ -1,0 +1,9 @@
+import eikosi
+
+entry = eikosi.BookEntry('incopera:2002')
+entry.author = eikosi.AuthorList([['Frank', 'P.', 'Incopera'], ['David', 'P.', 'DeWitt']])
+entry.title = 'Heat and Mass Transfer'
+entry.publisher = 'John Wiley and Sons'
+entry.year = 2002
+entry.address = 'New York'
+

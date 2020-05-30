@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.BookEntry('crc')
+entry.author = eikosi.AuthorList([['John', 'R.', 'Rumble']])
+entry.title = 'CRC Handbook of Chemistry and Physics'
+entry.publisher = 'Taylor and Francis'
+entry.year = 2018
+entry.address = 'Boca Raton, FL'
+entry.edition = '98th'
+

@@ -1,0 +1,8 @@
+import eikosi
+
+entry = eikosi.BookEntry('linde:1961')
+entry.author = eikosi.AuthorList([['{The Linde Air Products Company}']])
+entry.title = 'The oxy-acetylene handbook'
+entry.publisher = 'Union Carbide Corp.'
+entry.year = 1961
+

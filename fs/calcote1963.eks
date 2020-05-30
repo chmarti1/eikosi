@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ProceedingsEntry('calcote:1963')
+entry.author = eikosi.AuthorList([['H.', 'F.', 'Calcote']])
+entry.title = 'Ion and electron profiles in flames'
+entry.booktitle = 'Ninth Symposium on Combustion'
+entry.year = 1963
+entry.volume = 9
+entry.publisher = 'Combustion Institute'
+entry.pages = '622-637'
+

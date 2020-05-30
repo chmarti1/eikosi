@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('belhi:2010')
+entry.author = eikosi.AuthorList([['Memdouh', 'Belhi'], ['Pascale', 'Domingo'], ['Pierre', 'Vervisch']])
+entry.title = 'Direct numerical simulation of the effect of an electric field on flame stability'
+entry.journal = 'Combustion and Flame'
+entry.year = 2010
+entry.volume = 157
+entry.pages = '2286-2297'
+

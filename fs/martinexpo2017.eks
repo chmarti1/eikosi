@@ -1,0 +1,9 @@
+import eikosi
+
+entry = eikosi.ProceedingsEntry('martin:expo:2017')
+entry.author = eikosi.AuthorList([['C.', 'Martin'], ['S.', 'Lepera'], ['U.', 'Vandsburger']])
+entry.title = 'Two-thermocouple method for radiation compensated thermometry'
+entry.booktitle = 'Proceedings of ASME Turbo Expo'
+entry.year = 2017
+entry.address = 'Charlotte, NC'
+

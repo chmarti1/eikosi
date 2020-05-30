@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('clements:1969')
+entry.author = eikosi.AuthorList([['R.', 'M.', 'Clements'], ['P.', 'R.', 'Smy']])
+entry.title = 'Electrostatic-Probe Studies in a Flame Plasma'
+entry.journal = 'Journal of Applied Physics'
+entry.year = 1969
+entry.volume = 40
+entry.pages = '4553-4558'
+entry.doi = '10.1063/1.1657231'
+

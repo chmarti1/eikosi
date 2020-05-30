@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.BookEntry('holzl:1979')
+entry.author = eikosi.AuthorList([['J.', 'H{\\"o}lzl'], ['F.K.', 'Schulte'], ['H.', 'Wagner']])
+entry.title = 'Solid Surface Physics'
+entry.publisher = 'Springer-Verlag'
+entry.year = 1979
+entry.address = 'Berlin'
+entry.volume = '85'
+

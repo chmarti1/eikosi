@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ProceedingsEntry('speelman:2015')
+entry.author = eikosi.AuthorList([['N.', 'Speelman'], ['M.', 'Kiefer'], ['D.', 'Markus'], ['U.', 'Maas'], ['L.P.H.', '{de Goey}'], ['J.A.', '{van Oijen}']])
+entry.title = 'Validation of a novel numerical model for the electrical currents in burner-stabilized methane-air flames'
+entry.booktitle = 'Proceedings of the Combustion Institute'
+entry.year = 2015
+entry.volume = 35
+entry.pages = '847-854'
+

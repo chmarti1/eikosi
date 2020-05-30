@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ProceedingsEntry('calcote:1961')
+entry.author = eikosi.AuthorList([['H.', 'F.', 'Calcote']])
+entry.title = 'Ion production and recombination in flames'
+entry.booktitle = 'Eighth Symposium on Combustion'
+entry.year = 1961
+entry.volume = 8
+entry.publisher = 'Combustion Institute'
+entry.pages = '184-199'
+

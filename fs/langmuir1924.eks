@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('langmuir:1924')
+entry.author = eikosi.AuthorList([['Irving', 'Langmuir']])
+entry.title = 'Studies of electric discharges in gases at low pressures'
+entry.journal = 'General Electric Review'
+entry.year = 1924
+entry.volume = 27
+entry.number = 12
+entry.pages = '810'
+

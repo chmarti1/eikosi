@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('fialkov:1997')
+entry.author = eikosi.AuthorList([['Alexander', 'B.', 'Fialkov']])
+entry.title = 'Investigations on ions in flames'
+entry.journal = 'Progress in Energy and Combustion Science'
+entry.year = 1997
+entry.volume = 23
+entry.pages = '399-528'
+

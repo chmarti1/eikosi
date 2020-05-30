@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('wilson:1931')
+entry.author = eikosi.AuthorList([['H.', 'Wilson']])
+entry.title = 'Electrical Conductivity of Flames'
+entry.journal = 'Reviews of Modern Physics'
+entry.year = 1931
+entry.volume = 3
+entry.number = 1
+entry.month = 'March'
+

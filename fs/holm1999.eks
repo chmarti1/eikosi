@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('holm:1999')
+entry.author = eikosi.AuthorList([['Torkil', 'Holm']])
+entry.title = 'Aspects of the mechanism of the flame ionization detector'
+entry.journal = 'Journal of Chromatography A'
+entry.year = 1999
+entry.volume = 842
+entry.pages = '221-227'
+

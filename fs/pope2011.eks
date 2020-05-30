@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.BookEntry('pope:2011')
+entry.author = eikosi.AuthorList([['Stephen', 'B.', 'Pope']])
+entry.title = 'Turbulent Flows'
+entry.publisher = 'Cambridge University Press'
+entry.year = 2011
+entry.address = 'New York'
+entry.edition = '9th'
+entry.isbn = '978-0-521-59886-6'
+

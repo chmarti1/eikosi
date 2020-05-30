@@ -1,0 +1,9 @@
+import eikosi
+
+entry = eikosi.BookEntry('richardson:1916')
+entry.author = eikosi.AuthorList([['Richardson,', 'Owen', 'W.']])
+entry.title = 'Emission of Electricity from Hot Bodies'
+entry.publisher = 'Longmans Green and Co.'
+entry.year = 1916
+entry.address = 'London'
+

@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('glumac:2007')
+entry.author = eikosi.AuthorList([['N.', 'G.', 'Glumac']])
+entry.title = 'Flame temperature predictions and comparison with experiment in high flow rate, fuel-rich acetylene/oxygen flames'
+entry.journal = 'Combustion Science and Technology'
+entry.year = 2007
+entry.volume = 122
+entry.pages = '1-6'
+entry.doi = '10.1080/00102209708935617'
+

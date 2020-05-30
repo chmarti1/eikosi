@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('clements:1970')
+entry.author = eikosi.AuthorList([['R.', 'M.', 'Clements'], ['P.', 'R.', 'Smy']])
+entry.title = 'Ion current to a spherical probe in a flowing high-pressure plasma under thin-sheath conditions'
+entry.journal = 'Proceedings of the IEE'
+entry.year = 1970
+entry.volume = 117
+entry.number = 8
+entry.pages = '1721-1724'
+

@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('hu:2000')
+entry.author = eikosi.AuthorList([['Jing', 'Hu'], ['Boris', 'Rivin'], ['Eran', 'Sher']])
+entry.title = 'The effect of an electric field on the shape of co-flowing and candle-type methane-air flames'
+entry.journal = 'Experimental and Thermal Fluid Science'
+entry.year = 2000
+entry.volume = 21
+entry.pages = '124-133'
+

@@ -1,0 +1,12 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('clements:1970a')
+entry.author = eikosi.AuthorList([['R.', 'M.', 'Clements'], ['P.', 'R.', 'Smy']])
+entry.title = 'Ion Current from a Collision-Dominated Flowing Plasma to a Cylindrical Electrode Surrounded by a Thin Sheath'
+entry.journal = 'Journal of Applied Physics'
+entry.year = 1970
+entry.volume = 41
+entry.number = 9
+entry.pages = '3745-3749'
+entry.doi = '10.1063/1.1659502'
+

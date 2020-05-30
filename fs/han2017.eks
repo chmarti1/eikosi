@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ProceedingsEntry('han:2017')
+entry.author = eikosi.AuthorList([['Jie', 'Han'], ['Memdouh', 'Belhi'], ['Tiernan', 'Casey'], ['Fabrizio', 'Bisetti'], ['Hong', 'Im'], ['Jyh-Yuan', 'Chen']])
+entry.title = 'The i-V curve characteristics of burner-stabilized premixed flames: detailed and reduced models'
+entry.booktitle = 'Proceedings of the Combustion Institute'
+entry.year = 2017
+entry.volume = 36
+entry.pages = '1241-1250'
+

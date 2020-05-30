@@ -1,0 +1,12 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('henein:2010')
+entry.author = eikosi.AuthorList([['N.', 'Henein'], ['W.', 'Bryzik'], ['A.', 'Abdel-Rehim'], ['A.', 'Gupta']])
+entry.title = 'Characteristics of Ion Current Signals in Compression Ignition and Spark Ignition Engines'
+entry.journal = '{SAE} International Journal of Engines'
+entry.year = 2010
+entry.volume = 3
+entry.number = 1
+entry.month = 'April'
+entry.pages = '260-281'
+

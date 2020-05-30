@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ReportEntry('martin:flamesense1')
+entry.author = eikosi.AuthorList([['C.', 'Martin']])
+entry.title = 'Oxyfuel Process Sensing Using Flame and Work Electrical Characteristics, Part I: Preliminary Measurements'
+entry.year = 2013
+entry.number = '13002'
+entry.institution = '{ESAB} {W}elding and {C}utting'
+entry.month = 'April'
+entry.address = 'Florence, SC'
+

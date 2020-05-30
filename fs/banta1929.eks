@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('banta:1929')
+entry.author = eikosi.AuthorList([['H.', 'Banta']])
+entry.title = 'The Mobility of Positive Ions in Flames'
+entry.journal = 'Physical Review'
+entry.year = 1929
+entry.volume = 33
+entry.month = 'February'
+

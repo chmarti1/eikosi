@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('bradley:1974')
+entry.author = eikosi.AuthorList([['D.', 'Bradley'], ['Said', 'M.', 'A.', 'Ibrahim']])
+entry.title = 'Determination of Positive-Ion Mobilities and Collision Cross Sections in Flame Gases Using Electrostatic Probes'
+entry.journal = 'Journal of Physics D: Applied Physics'
+entry.year = 1974
+entry.volume = 7
+entry.pages = '1377-1390'
+

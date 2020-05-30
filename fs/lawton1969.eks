@@ -1,0 +1,9 @@
+import eikosi
+
+entry = eikosi.BookEntry('lawton:1969')
+entry.author = eikosi.AuthorList([['James', 'Lawton'], ['Felix', 'J.', 'Weinberg']])
+entry.title = 'Electrical aspects of combustion'
+entry.publisher = 'Oxford: Clarendon Press'
+entry.year = 1969
+entry.isbn = '0198553412'
+

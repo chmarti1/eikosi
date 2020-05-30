@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('bolobov:2001')
+entry.author = eikosi.AuthorList([['V.', 'I.', 'Bolobov']])
+entry.title = 'Conditions for the ignition of iron and carbon steel in oxygen'
+entry.journal = 'Combustion, Explosion, and Shock Waves'
+entry.year = 2001
+entry.volume = 37
+entry.number = 3
+entry.pages = '292-296'
+

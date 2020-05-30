@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('wilson:1916')
+entry.author = eikosi.AuthorList([['H.', 'Wilson']])
+entry.title = 'The Electrical Conductivity and Luminocity of Flames Containing Salt Vapours'
+entry.journal = 'Phil. Trans. R. Soc. Lond. A'
+entry.year = 1916
+entry.volume = 216
+entry.month = 'January'
+

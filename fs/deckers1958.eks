@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ProceedingsEntry('deckers:1958')
+entry.author = eikosi.AuthorList([['J.', 'Deckers'], ['A.', '{Van Tiggelen}']])
+entry.title = 'Ion identification in flames'
+entry.booktitle = 'Seventh Symposium on Combustion'
+entry.year = 1958
+entry.volume = 7
+entry.publisher = 'Combustion Institute'
+entry.pages = '254-255'
+

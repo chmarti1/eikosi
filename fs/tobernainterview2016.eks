@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.MiscEntry('toberna:interview:2016')
+entry.author = eikosi.AuthorList([['Joerg', 'Toberna']])
+entry.title = 'History of Ion Current Sensing in Messer Cutting Systems'
+entry.howpublished = 'Personal Communication'
+entry.year = 2016
+entry.month = 'September'
+entry.day = '14'
+

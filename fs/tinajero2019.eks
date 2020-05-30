@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('tinajero:2019')
+entry.author = eikosi.AuthorList([['Jesse', 'Tinajero'], ['Derek', 'Dunn-Rankin']])
+entry.title = 'Non-premixed axisymmetric flames driven by ion currents'
+entry.journal = 'Combustion and Flame'
+entry.year = 2019
+entry.volume = 199
+entry.pages = '365-376'
+

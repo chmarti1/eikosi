@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ProceedingsEntry('friedman:1965')
+entry.author = eikosi.AuthorList([['R.', 'Friedman'], ['A.', 'Macek']])
+entry.title = 'A Novel Chemical System for Generation of Electron-Rich Gases'
+entry.booktitle = 'Proceedings of the Combustion Institute'
+entry.year = 1965
+entry.volume = 10
+entry.pages = '731-741'
+

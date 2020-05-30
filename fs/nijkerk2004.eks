@@ -1,0 +1,13 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('nijkerk:2004')
+entry.author = eikosi.AuthorList([['Nijkerk,', 'M.D.'], ['Kruit,', 'P.']])
+entry.title = 'Influence of surface roughness on space charge limited emission'
+entry.journal = 'Applied Surface Science'
+entry.year = 2004
+entry.volume = 233
+entry.pages = '172-179'
+entry.issn = '0169-4332'
+entry.address = 'Netherlands'
+entry.doi = '10.1016/j.apsusc.2004.03.012'
+

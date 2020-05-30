@@ -1,0 +1,19 @@
+import eikosi as ek
+
+entry = ek.ArticleEntry('test:b')
+
+entry.author = ['Leo Martin', 'Chris Martin']
+entry.title = 'Test title B'
+entry.journal = 'International journal of free software'
+entry.year = 2021
+entry.number = 1
+entry.collections = ['c2', 'rabbit']
+entry.doc = """
+This represents notes taken on the reference.  These notes
+may span many lines, and are expected to be formatted in
+paragraphs.
+
+Newlines, like spaces and tabs, are ignored unless they 
+occur twice in a row. Double-newlines are interpreted as
+paragraph breaks.
+"""

@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('mierzwinski:1991')
+entry.author = eikosi.AuthorList([['Eugene', 'P.', 'Mierzwinski']])
+entry.title = 'Integrated Furnace Control'
+entry.journal = '{IEEE} Transactions on Industry Applications'
+entry.year = 1991
+entry.volume = 27
+entry.number = 2
+entry.pages = '257-261'
+

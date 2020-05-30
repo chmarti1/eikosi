@@ -1,0 +1,8 @@
+import eikosi
+
+entry = eikosi.MiscEntry('matweb:steel')
+entry.author = eikosi.AuthorList([['Matweb']])
+entry.title = '{AISI} 1018 Steel'
+entry.howpublished = 'http://matweb.com/search/DataSheet.aspx?-MatGUID=3a9cc570fbb24d119f08db22a53e2421'
+entry.year = 2017
+

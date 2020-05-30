@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.PatentEntry('martin:patent:2018')
+entry.author = eikosi.AuthorList([['Christopher', 'Martin']])
+entry.title = 'Work piece condition detection using flame electrical characteristics in oxyfuel thermal processing equipment'
+entry.number = '10,067,496'
+entry.nationality = 'US'
+entry.year = 2018
+entry.assignee = 'The ESAB Group, Inc.'
+entry.month = 'September'
+

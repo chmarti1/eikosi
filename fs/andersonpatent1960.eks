@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.PatentEntry('anderson:patent:1960')
+entry.author = eikosi.AuthorList([['Nelson', 'Anderson']])
+entry.title = 'Method and apparatus for automatic torch positioning'
+entry.number = '2,949,391'
+entry.nationality = 'US'
+entry.year = 1960
+entry.assignee = 'Air Reduction Co.'
+

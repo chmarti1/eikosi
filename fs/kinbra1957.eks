@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('kinbra:1957')
+entry.author = eikosi.AuthorList([['Tosiro', 'Kinbra'], ['Hideo', 'Ikegami']])
+entry.title = 'On the positive and negative ions in diffusion flames'
+entry.journal = 'Combustion and Flame'
+entry.year = 1957
+entry.volume = 1
+entry.number = 2
+entry.pages = '199-256'
+

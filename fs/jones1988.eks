@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('jones:1988')
+entry.author = eikosi.AuthorList([['A.R.', 'Jones']])
+entry.title = 'Flame failure detection and modern boilers'
+entry.journal = 'Journal of Physics E: Scientific Instruments'
+entry.year = 1988
+entry.volume = 21
+entry.pages = '921-928'
+

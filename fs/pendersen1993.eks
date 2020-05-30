@@ -1,0 +1,10 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('pendersen:1993')
+entry.author = eikosi.AuthorList([['Timothy', 'Pendersen'], ['Robert', 'C.', 'Brown']])
+entry.title = 'Simulation of electric field effects in premixed methane flames'
+entry.journal = 'Combustion and Flame'
+entry.year = 1993
+entry.volume = 94
+entry.pages = '433-448'
+

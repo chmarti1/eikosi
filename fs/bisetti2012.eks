@@ -1,0 +1,11 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('bisetti:2012')
+entry.author = eikosi.AuthorList([['Fabrizio', 'Bisetti'], ['Mbark', 'El', 'Morsli']])
+entry.title = 'Calculation and analysis of the mobility and diffusion coefficient of thermal electrons in methane/air premixed flames'
+entry.journal = 'Combustion and Flame'
+entry.year = 2012
+entry.volume = 159
+entry.pages = '3518-3521'
+entry.doi = '10.1016/j.combustflame.2012.08.002'
+

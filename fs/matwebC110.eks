@@ -1,8 +1,0 @@
-import eikosi
-
-entry = eikosi.MiscEntry('matweb:C110')
-entry.author = eikosi.AuthorList([['Matweb']])
-entry.title = 'Eagle Brass {EPT} 110 Copper'
-entry.howpublished = 'http://matweb.com/search/DataSheet.aspx?-MatGUID=d51a19947e624563bde3c3e7be245602\\&ckck=1'
-entry.year = 2017
-

@@ -1,8 +1,0 @@
-import eikosi
-
-c001 = eikosi.Collection('c1')
-c002 = eikosi.SubCollection('c2')
-c003 = eikosi.SubCollection('c3')
-c001.addchild(c002)
-c001.addchild(c003)
-c002.addchild(c003)

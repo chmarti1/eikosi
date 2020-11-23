@@ -1,9 +1,0 @@
-import eikosi
-
-entry = eikosi.ArticleEntry('martin:cst:2020')
-entry.author = eikosi.AuthorList([['Christopher', 'R.', 'Martin'], ['Alex', 'Untaroiu'], ['Kemu', 'Xu']])
-entry.title = 'Spatially resolved ion density measurements in an oxyfuel cutting flame'
-entry.journal = 'Combustion Science and Technology'
-entry.year = 2020
-entry.note = '[Submitted]'
-

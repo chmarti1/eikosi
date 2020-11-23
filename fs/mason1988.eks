@@ -1,9 +1,0 @@
-import eikosi
-
-entry = eikosi.BookEntry('mason:1988')
-entry.author = eikosi.AuthorList([['Edward', 'A.', 'Mason'], ['Earl', 'W.', 'Mc{D}aniel']])
-entry.title = 'Transport Properties of Ions in Gases'
-entry.publisher = 'John Wiley \\& Sons'
-entry.year = 1988
-entry.address = 'New York'
-

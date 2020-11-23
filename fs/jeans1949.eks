@@ -1,9 +1,0 @@
-import eikosi
-
-entry = eikosi.BookEntry('jeans:1949')
-entry.author = eikosi.AuthorList([['James', 'Jeans']])
-entry.title = 'Introduction to the Kinetic Theory of Gases'
-entry.publisher = 'Cambridge University Press'
-entry.year = 1949
-entry.address = 'London'
-

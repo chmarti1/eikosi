@@ -1,9 +1,0 @@
-import eikosi
-
-entry = eikosi.ArticleEntry('test:b')
-entry.author = eikosi.AuthorList([['Leo', 'Martin'], ['Chris', 'Martin']])
-entry.title = 'Test title B'
-entry.journal = 'International journal of free software'
-entry.year = 2021
-entry.number = 1
-

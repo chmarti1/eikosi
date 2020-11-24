@@ -1,0 +1,2217 @@
+2,20c2,46
+< """The PyBib module provides classes and data for managing searchable 
+< collections of bibliographic entries.  The intent is for users to be 
+< able to create their own .eks files alongside their libraries of pdfs or
+< in their project folders.  These files contain executable python code 
+< that constructs a bibliographic entry and can include notes.
+< 
+< The _eikosi.load()_ function returns a MasterCollection instance, which
+< contains all entries discovered in the load process.  The load() 
+< function can load individual files or entire directories of files.
+< 
+< The _eikosi.bibload()_ function is useful for reading in 
+< 
+< Some terminology used here:
+< ITEM:   A single datum in an Entry.  For example author, title, year, etc...
+< ENTRY:  A bibliographic record of a single reference.  An Entry may belong to a 
+<         colleciton and is composed of items.
+< COLLECTION: A group of Entries and Collections.
+< MEMBER: An Entry or Collection that belongs to a Collection or one of the member
+<         Collections.
+---
+> """The Eikosi module provides classes and data for managing searchable collections
+> of bibliographic entries.  The idea behind Eikosi is that contemporary 
+> scientific communication is performed through papers transmitted as pdfs, or 
+> data downloaded through repositories; it would be nice if one could enter 
+> bibliographic data, notes, categorize, and cross-link references from a single
+> text file.
+> 
+> While there are many ways that users can implement Eikosi, the intended use is
+> for an .eks file to be created alongside each downloaded pdf or in each 
+> repository being tracked.  An .eks file is just a snipet of Python code that 
+> records all of the relevant bibliographic data, notes, and that organizes 
+> bibliographic entries into collections so they can be conveniently called up 
+> later.
+> 
+> For example, these might be the contents of an .eks file:
+>     import eikosi as ek
+>     
+>     entry = ek.ArticleEntry('example:1')
+>     
+>     entry.author = 'Mysef {at Large}'
+>     entry.title = 'An example to demonstrate how entries are defined'
+>     entry.journal = 'Home Grown Code'
+>     entry.volume = 15
+>     entry.number = 1
+>     entry.year = 2020
+> 
+> There is no need to assemble all of the bibliographic entries in one place.  
+> Your library can grow or shrink or merge or... whatever, as long as you keep
+> moving around your .eks files along with your pdfs.
+> 
+> The modules supplies two functions that are used to load in data:
+> load()          Read in a repository of Eikosi collections and entries
+> loadbib()       Construct an Eikosi collection from a BibTeX file
+> 
+> Both of these return a MasterCollection object, populated with the data they 
+> read in from their respective sources.  The load() funciton is intended to be
+> the primary method for loading data into scripts or the command ine.  The laod()
+> function can read in entire directories or single files.  For detailed 
+> information, see the load() documentation. 
+> 
+> The Collection classes are:
+> ProtoCollection
+> |-> MasterCollection
+> |-> Collection
+> \-> SubCollection
+29a56,58
+> Collections are groups of Entries and other Collections.  An Entry belongs to a
+> Collection if it belongs to that Collection or any of its children.
+> 
+34,35c63,64
+<     pb = pybib.WebsiteEntry('martin:2020')
+<     pb.url = 'https://github.com/chmarti1/pybib'
+---
+>     pb = eikosi.WebsiteEntry('martin:2020')
+>     pb.url = 'https://github.com/chmarti1/eikosi'
+38c67
+<     pb.bib['url'] = 'https://github.com/chmarti1/pybib'
+---
+>     pb.bib['url'] = 'https://github.com/chmarti1/eikosi'
+42,50c71,72
+< obviously, neither is bib itself!  There are three instance attributes that are
+< accessible, but that are NOT part of the bibliographic entry:
+< --> name
+< The tag assigned to the entry in the bibtex entry
+< --> sourcefile
+< The file from which the Entry was loaded if loaded by load()
+< --> bib
+< The bibliographic dict.  Each item in the bib dict will form an item in the 
+< bibtex entry.
+---
+> obviously, neither is bib itself!  Check the Entry documentation for more 
+> information.
+54a77
+> from math import log2
+56a80,81
+> import re
+> 
+57a83
+> __version__ = '0.1'
+59a86,194
+> 
+> 
+> def _initial(part):
+>     """Helper function to construct an initial from a name part"""
+>     escape = False
+>     for char in part:
+>         # If this character is escaped, ignore it
+>         if escape:
+>             escape = False
+>         elif char == '\\':
+>             escape = True
+>         elif char.isalpha():
+>             return char.upper()
+>     raise Exception('AuthorList._initial: Failed to find a valid alpha character from: ' + part + '\n')
+>     
+> def _fingerprint(text):
+>     """Helper function to distill a name part into a fingerprint
+> The returned string will be a modified version of the name part with all non-
+> alpha characters removed, and all alpha characters translated to lower case.
+> """
+>     return ''.join([char.lower() if char.isalpha() else '' for char in text])
+> 
+> 
+> 
+> M_DEF_FULL = False
+> class Month:
+>     """eikosi Month handler class
+> m = Month(integer)
+>     OR
+> m = Month(month_name)
+>     OR
+> m = Month(month_abbrev)
+> 
+> The month class is designed to handle month entries as part of a date 
+> specification.  The repr() and str() outputs are appropriate for write() and
+> write_bib(), and the show() method is appropriate for write_txt().
+> 
+> The optional keyword, full, can be used to prompt the Month instance to return
+> the month's full name instead of the abbreviation.
+> 
+>     m = Month(source, full=True)
+>     
+> Or, the attribute may be modified after initialization.
+> 
+>     m.full = False
+> """
+>     months_full = [None, 'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
+>     months_abbrev = [None, 'jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+>     
+>     def __init__(self, source, full=M_DEF_FULL):
+>         self.index = None
+>         self.full = full
+>         # Parse a string
+>         if isinstance(source,str):
+>             # Force lower case and strip out white space
+>             msource = source.lower().strip()
+>             # Search for the month in the 
+>             try:
+>                 self.index = self.months_full.index(msource)
+>                 return
+>             except ValueError:
+>                 pass
+>             except:
+>                 raise sys.exc_info()[1]
+>                 
+>             # The month was not a full month.  Try an abbreviation
+>             # Strip away any trailing '.'
+>             msource = msource.strip('.')
+>             try:
+>                 self.index = self.months_abbrev.index(msource)
+>                 return
+>             except ValueError:
+>                 pass
+>             except:
+>                 raise sys.exc_info()[1]
+>             
+>             # OK, this doesn't look like a month.  Is it an integer?
+>             try:
+>                 self.index = int(source)
+>             except:
+>                 raise ValueError(f'Month: Expected a month name, its abbreviation, or an integer, but received: {msource}\n')
+>         # Parse an integer
+>         elif isinstance(source, int):
+>             self.index = source
+>         else:
+>             raise ValueError(f'Month: Expected a month name, its abbreviation, or an integer, but received: {msource}\n')
+> 
+>         # We now have an integer.  Now, make sure it is in-range.
+>         if self.index < 1 or self.index > 12:
+>             raise ValueError(f'Month: The month index must be between 1 and 12. Found: {self.index}')
+> 
+>     def __repr__(self):
+>         if self.full == M_DEF_FULL:
+>             return f'Month({self.index})'
+>         else:
+>             return f'Month({self.index}, full={self.full})'
+>         
+>     def __str__(self):
+>         if self.full:
+>             return self.months_full[self.index].title()
+>         else:
+>             return self.months_abbrev[self.index].title()
+> 
+>     def show(self):
+>         """Return a string representing the month.  This is a wrapper function for __str__()
+> """
+>         return self.__str__()
+>         
+> 
+63c198
+<     """PyBib Author List handler class
+---
+>     """eikosi Author List handler class
+100a236,269
+> 
+> ** COMPARING AUTHOR LISTS **
+> 
+> Comparison operations < > == are provided for author lists that allow 
+> collections to be alphabetized by author and provide tools for identifying
+> potentially duplicated entries.
+> 
+> The entry of author names leaves some room for ambiguity (e.g. whether first
+> name or initial is entered, whether middle name(s) are entered at all, and 
+> precisely how prefixes like "von" or "de la" are included).  The following 
+> algorithms reduce (but do not eliminate) sensitivity to these ambiguities.  
+> First, we need to establish the idea of a "fingerprint" of a string.  Using the
+> _fingerprint() function, a string is stripped of all non-alpha characters and 
+> all upper case characters are demoted to lower case.  This makes the string 
+> difficult for a human to read, but it eliminates all whitespace, punctuation, 
+> brackets, and other potentially ambiguous pieces of the data element.
+> 
+> Testing for equality... Two AuthorList instances evaluate as "equal" if the 
+> number of authors is the same, if the fingerprint of the last name of authors
+> in the same place of each list is the same, and if the first initial (if given)
+> of the first names of authors in the same place of each list is the same.
+> 
+> Test for less than (or greater than)... Less than (greater than) tests obey the
+> standard rules for alphabetization for author name.  When two AuthorList 
+> instances are compared, the fingerprint of their last names are compared.  If 
+> they are equal, the first initial is compared.  If the first authors are found
+> to be identical using this method, the process is repeated in order until one of
+> the authors' names does not match or one of the lists is exhausted.  If the 
+> lists are of different lengths, and all but the "extra" names match, then the
+> shorter of the two lists is taken to be less than (first alphabetically).  If
+> the list lengths are identical, then they are treated as equal.
+> 
+> It should be noted that this test does have difficulty with prefixes (like von 
+> or de la).
+137c306
+<         out = self.__class__.__module__ + '.AuthorList(' + repr(self.names)
+---
+>         out = 'AuthorList(' + repr(self.names)
+157c326
+<                     out += self._initial(part) + '. '
+---
+>                     out += _initial(part) + '. '
+163c332
+<                     out += self._initial(part) + '. '
+---
+>                     out += _initial(part) + '. '
+170,181c339,383
+<     def _initial(self, part):
+<         """Helper function to construct an initial from a name part"""
+<         escape = False
+<         for char in part:
+<             # If this character is escaped, ignore it
+<             if escape:
+<                 escape = False
+<             elif char == '\\':
+<                 escape = True
+<             elif char.isalpha():
+<                 return char.upper()
+<         raise Exception('AuthorList._initial: Failed to find a valid alpha character from: ' + part + '\n')
+---
+>     # Define comparison operations for sorting algorithms
+>     def __lt__(self, b):
+>         for namea, nameb in zip(self.names, b.names):
+>             # If the last name is different, then we have our answer
+>             lasta = _fingerprint(namea[-1])
+>             lastb = _fingerprint(nameb[-1])
+>             if lasta != lastb:
+>                 return lasta < lastb
+>             # If either of the names lacks a first name
+>             if len(namea)==1 or len(nameb)==1:
+>                 pass
+>             elif _initial(namea[0]) < _initial(nameb[0]):
+>                 return True
+>         return len(self.names) < len(b.names)
+> 
+>     # Define comparison operations for sorting algorithms
+>     def __gt__(self, b):
+>         for namea, nameb in zip(self.names, b.names):
+>             # If the last name is different, then we have our answer
+>             lasta = _fingerprint(namea[-1])
+>             lastb = _fingerprint(nameb[-1])
+>             if lasta != lastb:
+>                 return lasta > lastb
+>             # If either of the names lacks a first name
+>             if len(namea)==1 or len(nameb)==1:
+>                 pass
+>             elif _initial(namea[0]) > _initial(nameb[0]):
+>                 return True
+>         return len(self.names) > len(b.names)
+>         
+>     def __eq__(self, b):
+>         if len(self.names) != len(b.names):
+>             return False
+>         for namea, nameb in zip(self.names, b.names):
+>             # If the last name is different, then we have our answer
+>             if _fingerprint(namea[-1]) != _fingerprint(nameb[-1]):
+>                 return False
+>             # If either of the names lacks a first name
+>             if len(namea)==1 or len(nameb)==1:
+>                 pass
+>             # If the first initials don't match
+>             elif _initial(namea[0]) != _initial(nameb[0]):
+>                 return False
+>         return True
+>             
+230,234c432,435
+< The formatting of the author string is dependent on the "fullfirst" and 
+< "fullother" attributes.  If they are set to False, their respective name 
+< parts will be truncated to first initials using the _initial() method.  
+< If they are True, then the respective name part will be written in order
+< without modification.
+---
+> The formatting of the author string is dependent on the fullfirst and fullother
+> attributes.  If they are set to False, their respective name parts will be 
+> truncated to first initials using the _initial() method.  If they are True, then
+> the respective name part will be written in order without modification.
+249c450
+<                 out += self._initial(author[0]) + '. '
+---
+>                 out += _initial(author[0]) + '. '
+255c456
+<                     out += self._initial(name) + '. '
+---
+>                     out += _initial(name) + '. '
+381c582
+< ** The mandatory and optional dicts **
+---
+> ** The mandatory and optional sets **
+383,384c584,585
+< The mandatory and optional dicts are attributes that are supposed to reside with
+< the class object, and that should only be referenced by instances.  They define
+---
+> The mandatory and optional sets are attributes that must to reside with the 
+> class object, and that should only be referenced by instances.  They define 
+441,455c642,644
+<     mandatory = {}
+<     optional = {
+<         'author':((str,list,tuple,AuthorList), AuthorList, repr, str),
+<         'title': (str, None, repr, None),
+<         'journal': (str, None, repr, None),
+<         'booktitle': (str, None, repr, None),
+<         'publisher': (str, None, repr, None),
+<         'howpublished': (str, None, repr, None),
+<         'address': (str, None, repr, None),
+<         'year': ((int,str), int, repr, repr),
+<         'volume': ((str,int), int, repr, repr),
+<         'number': ((str,int), int, repr, repr),
+<         'page': (str, None, repr, None)}
+<     default = [str, None, repr, None]
+<     tag = '@MISC'
+---
+>     mandatory = set()
+>     optional = set()
+>     tag = None
+462,463c651,652
+<         self.__dict__['sourcefile'] = None
+<         self.__dict__['docfile'] = None
+---
+>         self.__dict__['sourcefile'] = ''
+>         self.__dict__['docfile'] = ''
+469a659,662
+>         
+>     def __repr__(self):
+>         thisclass = self.__class__.__name__
+>         return f'{thisclass}({repr(self.name)})'
+489,491c682,684
+<         bib = self.__dict__['bib']
+<         if item in bib:
+<             return bib[item]
+---
+>         output = self.__dict__['bib'].get(item)
+>         if output:
+>             return output
+498a692,694
+>             
+>     def __contains__(self, item):
+>         return item in self.__dict__ or item in self.bib
+500,568c696,709
+<     def post(self, fatal=True, verbose=False, strict=False):
+<         """Post processing algorithm
+< The post method is intended to be run on entries after they are defined in their
+< source files.  Each Entry sub-class can define its own post algorithm.  This 
+< default Entry.post algorithm verifies that all of the mandatory items have been
+< defined, checks their data types, and runs the respective inputhandler functions
+< if they are defined.  If they are defined, the same is done for any optional
+< items.
+< 
+< post() also attempts to construct an absolute path for the docfile attribute.
+< The docfile attribute is assumed to be a path to a file (usually a pdf) that
+< is the target of the citation.  If the docfile attribute is not an absolute path
+< post() first attempts to treat it as a path relative to the sourcefile 
+< directory.  If the sourcefile directory is undefined or is not an absolute path,
+< then post() builds an absolute path relative to the current working dirrectory.
+< Finally, if the file to which the absolute path points does not exist, an error
+< condition is created (see fatal and verbose below).
+< 
+< There are are three optional keywords that change how post() operates:
+< 
+< fatal (True)
+< If there is an error while post processing any item, halt and raise an 
+< exception.  This is set to False when a collection is loaded with its relax 
+< option.  The entries will not be gauranteed to be correctly formatted, but the 
+< operation will still succeed, and the entries can be corrected in memory.
+< 
+< verbose (False)
+< When verbose is set to False, the post() method will only print to stdout or 
+< stderr when an exception is raised.  When verbose is set to True, the post() 
+< method prints a more detailed description of problems intended to help users
+< identify and fix problems with their source data files.  The same information
+< is printed when fatal=True, but it is probably a bad idea to run post() with 
+< BOTH fatal and verbose set to False.
+< 
+< strict (False)
+< When strict is True, all items in the entry MUST be in the mandatory or optional
+< lists.  When fatal is also set to True, an unrecognized item will result in an
+< Exception.  When fatal is not set, running strictly will strip unrecongized 
+< items from the entry.  Again, unless verbose is set, the user will not be warned
+< that this is happening.
+< """
+<         err = False
+<         handled = []
+<         # Loop through the mandatory items
+<         for itemname,(allowedtypes,inputhandler,codehandler,outputhandler) in self.mandatory.items():
+<             if isinstance(allowedtypes,type):
+<                 allowedtypes = (allowedtypes,)
+<                 
+<             # Check that each mandatory item exists and is a legal type
+<             if itemname not in self.bib:
+<                 err = True
+<                 if verbose or fatal:
+<                     sys.stderr.write('Entry.post: Error processing entry: {}\n'.format(self.name))
+<                     if self.sourcefile:
+<                         sys.stderr.write('Entry.post: Defined in file: {}\n'.format(self.sourcefile))
+<                     sys.stderr.write('Entry.post: Mandatory item "{}" was not found in entry "{}"\n'.format(itemname, self.name))
+<                 if fatal:
+<                     raise Exception('Missing mandatory item\n')
+<             elif not isinstance(self.bib[itemname], allowedtypes):
+<                 err = True
+<                 if verbose or fatal:
+<                     sys.stderr.write('Entry.post: Error processing entry: {}\n'.format(self.name))
+<                     if self.sourcefile:
+<                         sys.stderr.write('Entry.post: Defined in file: {}\n'.format(self.sourcefile))
+<                     sys.stderr.write('Entry.post: Item {} is type {}.\n'.format(itemname, repr(type(self.bib[itemname]))))
+<                     sys.stderr.write('    Legal types are:\n')
+<                     for this in allowedtypes:
+<                         sys.stderr.write(' ' + repr(this))
+<                     sys.stderr.write('\n')
+---
+>     def _convert(self, item, dtype, fatal):
+>         """Convert an item to an integer and raise a meaningful error if it fails
+> value = _convert(item, dtype, fatal)
+> 
+> item is the item to be converted, dtype is the function or class to perform the
+> conversion, and fatal should be True or False to specify what should be done in 
+> the event of an error."""
+>         if item in self.bib:
+>             try:
+>                 self.bib[item] = dtype(self.bib[item])
+>             except:
+>                 sys.stderr.write(f'Entry._convert: Unsupported format for {item} in entry {self.name}\n')
+>                 if self.sourcefile:
+>                     sys.stderr.write(f'Entry._convert: loaded from file: {self.sourcefile}\n')
+570,586c711,783
+<                     raise Exception('Entry.post: Illegal item type\n')
+<             elif inputhandler is not None:
+<                 try:
+<                     self.bib[itemname] = inputhandler(self.bib[itemname])
+<                 except:
+<                     sys.stderr.write('Entry.post: Error processing entry: {}\n'.format(self.name))
+<                     if self.sourcefile:
+<                         sys.stderr.write('Entry.post: Defined in file: {}\n'.format(self.sourcefile))
+<                     sys.stderr.write('Entry.post: Input handler failure on entry "{}", item "{}".\n'.format(self.name, itemname))
+<                     if fatal:
+<                         raise sys.exc_info()[1]
+<             handled.append(itemname)
+<                
+<         # Loop through the optional items
+<         for itemname,(allowedtypes,inputhandler,codehandler,outputhandler) in self.optional.items():
+<             if isinstance(allowedtypes, type):
+<                 allowedtypes = (allowedtypes,)
+---
+>                     raise sys.exc_info()[1]
+>                     
+>                     
+>     def _date(self, yearfmt='', normal=''):
+>         """Build a date from the month, day, and year items
+> The optional keywords, yearfmt and normal insert formatting text before and 
+> after the year.
+>     {month} {day}, {yearfmt}{year}{normal}
+> The intent is that a posix formatting characters can be inserted to force a bold
+> year.  By default, they are empty strings."""
+>         out = ''
+>         if 'year' in self:
+>             if 'month' in self:
+>                 if 'day' in self:
+>                     out += f'{self.month.show()} {self.day}, '
+>                 else:
+>                     out += f'{self.month.show()}, '
+> 
+>             out += f'{yearfmt}{self.year}{normal}'
+>         return out
+> 
+>     def post(self, fatal=False, verbose=False, strict=False):
+>         """Each Entry subclass should define its own post method.  It must adopt the call signature
+>     post(fatal=False, verbose=False, strict=False)
+>     
+> This prototype post entry is intended to be called by subclass entries.  It 
+> (1) checks for absent mandatory items
+> (2) checks for unrecognized items (if strict)
+> 
+> Individual subclasses should additionally implement checks on data integrity,
+> perform any necessary data conversions (e.g. a string to an integer or vice 
+> versa) to respect mandatory data types.
+>     
+> fatal   When True, causes post to raise an error if some aspect of the data 
+>         record is incorrect.
+> verbose When True, post may print summary information to stdout
+> strict  When True, unrecognized parameters should generate an error message.
+> """
+>         # Test for available bibliographic items
+>         kk = set(self.bib.keys())
+>         # Are there any missing that are required?
+>         missing = self.mandatory - kk
+>         # Are there any that aren't recognized?
+>         unknown = kk - self.mandatory
+>         unknown -= self.optional
+>         err = len(missing) + (len(unknown) if strict else 0)
+>         for item in missing:
+>             sys.stderr.write(f'Entry.post: Missing mandatory item {item}\n')
+>         if strict:
+>             for item in unknown:
+>                 sys.stderr.write(f'Entry.post: Unrecognized item {item}\n')
+>         
+>         # Test the non-bibliographic items
+>         # Collections must be a list of strings
+>         if not isinstance(self.collections, list):
+>             err += 1
+>             sys.stderr.write(f'Entry.post: The collection attribute must be a list of strings.\n')
+>         elif any([not isinstance(this,str) for this in self.collections]):
+>             err += 1
+>             sys.stderr.write(f'Entry.post: The collection attribute must be a list of strings.\n')
+>         # Force the docfile to be a string.  Leave valid path testing to the load() algorithm
+>         elif not isinstance(self.docfile,str):
+>             err += 1
+>             sys.stderr.write(f'Entry.post: The docfile attribute must be a string path to a file.\n')
+>         # Force doc to be a string.
+>         elif not isinstance(self.doc,str):
+>             err += 1
+>             sys.stderr.write(f'Entry.post: The doc attribute must be a string.\n')            
+>         
+>         if err:
+>             sys.stderr.write(f'Entry.post: Found {err} errors in {self.tag} entry {self.name}\n')
+>             if self.sourcefile:
+>                 sys.stderr.write(f'Entry.post: defined in source file: {self.sourcefile}\n')
+588,613c785,786
+<             if itemname not in self.bib:
+<                 pass
+<             elif not isinstance(self.bib[itemname], allowedtypes):
+<                 err = True
+<                 if verbose or fatal:
+<                     sys.stderr.write('Entry.post: Error processing entry: {}\n'.format(self.name))
+<                     if self.sourcefile:
+<                         sys.stderr.write('Entry.post: Defined in file: {}\n'.format(self.sourcefile))
+<                     sys.stderr.write('Entry.post: Item {} is type {}.\n'.format(itemname, repr(type(self.bib[itemname]))))
+<                     sys.stderr.write('    Legal types are:\n')
+<                     for this in allowedtypes:
+<                         sys.stderr.write(' ' + repr(this))
+<                     sys.stderr.write('\n')
+<                 if fatal:
+<                     raise Exception('Entry.post: Illegal item type\n')
+<             elif inputhandler is not None:
+<                 try:
+<                     self.bib[itemname] = inputhandler(self.bib[itemname])
+<                 except:
+<                     sys.stderr.write('Entry.post: Error processing entry: {}\n'.format(self.name))
+<                     if self.sourcefile:
+<                         sys.stderr.write('Entry.post: Defined in file: {}\n'.format(self.sourcefile))
+<                     sys.stderr.write('Entry.post: Input processing failure on entry "{}", item "{}".\n'.format(itemname))
+<                     if fatal:
+<                         raise sys.exc_info()[1]
+<             handled.append(itemname)
+---
+>         if err and fatal:
+>             raise Exception('Entry.post')
+615,663c788,792
+<         # Loop over the remaining items
+<         allowedtypes,inputhandler,codehandler,outputhandler = self.default
+<         for itemname,value in self.bib.items():
+<             if itemname not in handled:
+<                 if strict:
+<                     if fatal or verbose:
+<                         sys.stderr.write('Entry.post: Error processing entry: {}\n'.format(self.name))
+<                         if self.sourcefile:
+<                             sys.stderr.write('Entry.post: Defined in file: {}\n'.format(self.sourcefile))
+<                         sys.stderr.write('Entry.post: Found an unrecognzied item, and post() was run strictly: {}\n'.format(itemname))
+<                     if fatal:
+<                         raise Exception('Entry.post: Unrecognzied item\n')
+<                     else:
+<                         del self.bib[itemname]
+<                 elif not isinstance(value,allowedtypes):
+<                     raise Exception('Entry.post: Default data type requirement violated by item: ' + itemname)
+<                 if inputhandler:
+<                     try:
+<                         self.bib[itemname] = inputhandler(value)
+<                     except:
+<                         sys.stderr.write('Entry.post: Error processing entry: {}\n'.format(self.name))
+<                         if self.sourcefile:
+<                             sys.stderr.write('Entry.post: Defined in file: {}\n'.format(self.sourcefile))
+<                         sys.stderr.write('Entry.post: Input processing failure on item: {}\n'.format(itemname))
+<                         if fatal:
+<                             raise sys.exc_info()[1]
+<                             
+<             # Inspect the docfile value if it is set
+<             if self.docfile:
+<                 # Is it a relative path?
+<                 # If so, attempt to construct an absolute path.
+<                 if not os.path.isabs(self.docfile):
+<                     # If the sourcefile is set, get the containing directory there
+<                     if self.sourcefile and os.path.isabs(self.sourcefile):
+<                         sourcedir = os.path.split(self.sourcefile)
+<                         self.docfile = os.path.join(sourcedir, self.sourcefile)
+<                     # Otherwise, attempt to construct an absolute path using the pwd
+<                     else:
+<                         self.docfile = os.path.abspath(self.docfile)
+<                 # Does the docfile exist?
+<                 if not os.path.isfile(self.docfile):
+<                     if verbose or fatal:
+<                         sys.stderr.write('Entry.post: Error processing entry: {}\n'.format(self.name))
+<                         if self.sourcefile:
+<                             sys.stderr.write('Entry.post: Defined in file: {}\n'.format(self.sourcefile))
+<                         sys.stderr.write('Entry.post: The docfile was not found: {}\n'.format(self.docfile))
+<                     if fatal:
+<                         raise Exception('Entry.post: docfile not found.\n')
+<         return err
+---
+>         if verbose:
+>             sys.stdout.write(f'Read in entry {self.name} of type {str(type(self))}\n')
+>             if self.sourcefile:
+>                 sys.stdout.write(f'from file {self.sourcefile}\n')
+>              
+666c795
+<     def save(self, target, addimport=True, varname='entry'):
+---
+>     def write(self, target=sys.stdout, addimport=True, varname='entry', module=None):
+667a797,831
+>     write()
+>         OR
+>     write('/path/to/file')
+>         OR
+>     write(file_object)
+> 
+> This write method is defined by the base Entry class with the intent that it be 
+> used by all classes, but subclasses are free to override this method.  
+> 
+> The output is executable python code that can be used to re-construct the object
+> being "written."  What is written is controlled by keyword arguments:
+> 
+> target  (def: stdout)   Where should the output go?  If it is a string, it is 
+>         treated as a path to a file.  Files should end with .eks so they can be
+>         discovered by the load() function.
+>         
+> addimport   (def: True) When True, the first line written imports the eikosi
+>             module. "import eikosi" or "import eikosi as {module}"  See module
+>             keyword for more information.  When multiple entries are written to
+>             the same file, only the first need write the import statement.
+>             
+> varname     (def: 'entry') This is the variable name that will be used for the 
+>             entry object.  When multiple entries are written to the same file,
+>             it is important that they be given unique variable names so that the
+>             earlier entries are not overwritten.
+>             
+> module      (def: None) When set to a string, it is the name that will be used
+>             for the eikosi module.  If None, then the full "eikosi" module name
+>             will be used.  Otherwise, the import statement and all subsequent 
+>             references to the module will use the string specified here.  See
+>             the addimport keyword for more information.
+>             
+> WARNING: items with data for which the repr() function does not produce Python
+> code defining the data will cause problems.  Classes that need to store such 
+> data should define their own write() method.
+669c833
+<         if isinstance(target, str):
+---
+>         if isinstance(target,str):
+671,672c835,836
+<                 return self.save(ff, addimport=addimport, varname=varname)
+<         
+---
+>                 self.write(target=target, addimport=addimport, varname=varname, module=module)
+> 
+677,678c841
+<         args = {'e':varname, 'c':thisclass, 'm':thismodule, 'n':self.name}
+<         
+---
+>         # Add a line importing the module
+680,682c843,852
+<             target.write('import {m:s}\n\n'.format(**args))
+<         
+<         target.write(f'{varname} = {thismodule}.{thisclass}(\'{self.name}\')\n')
+---
+>             if module is not None:
+>                 target.write(f'import {thismodule} as {module}\n\n')
+>             else:
+>                 target.write(f'import {thismodule}\n\n')
+>             
+>         # If the module name was not explicitly defined, use the full name
+>         if module is None:
+>             module = thismodule
+>         # Add a line declaring the entry variable
+>         target.write(f'{varname} = {module}.{thisclass}({repr(self.name)})\n')
+684,701c854
+<         handled = []
+<         for item,(allowedtypes,inputhandler,codehandler,outputhandler) in self.mandatory.items():
+<             if item in self.bib:
+<                 if codehandler:
+<                     value = codehandler(self.bib[item])
+<                 else:
+<                     value = self.bib[item]
+<                 target.write(f'{varname}.{item} = {value}\n')
+<                 handled.append(item)
+<         for item,(allowedtypes,inputhandler,codehandler,outputhandler) in self.optional.items():
+<             if item in self.bib:
+<                 if codehandler:
+<                     value = codehandler(self.bib[item])
+<                 else:
+<                     value = self.bib[item]
+<                 target.write(f'{varname}.{item} = {value}\n')
+<                 handled.append(item)
+<         allowedtypes, inputhandler, codehandler, outputhandler = self.default
+---
+>         # Start with bibliographic items
+703,708c856,863
+<             if item not in handled:
+<                 if codehandler:
+<                     value = codehandler(value)
+<                 target.write(f'{varname}.{item} = {value}\n')
+<             
+<         # finally, deal with the non-bibliographic meta data
+---
+>             # if the value is an eikosi value class, prepend the module name
+>             if isinstance(value, (Month, AuthorList)):
+>                 target.write(f'{varname}.{item} = {module}.{repr(value)}\n')
+>             else:
+>                 target.write(f'{varname}.{item} = {repr(value)}\n')
+>         
+>         if self.collections:
+>             target.write(f'{varname}.collections = {repr(self.collections)}\n')
+710,714c865,867
+<             target.write(f'{varname}.docfile = {self.docfile}\n')
+<         if self.collections and isinstance(self.collections,list):
+<             target.write(f'{varname}.collections = {self.collections!r}\n')
+<         if self.doc and isinstance(self.doc, str):
+<             target.write(f'{varname}.doc = """\n{self._splitlines(self.doc,74)}"""\n')
+---
+>             target.write(f'{varname}.docfile = {repr(self.docfile)}\n')
+>         if self.doc:
+>             target.write(f'{varname}.doc = """{self.doc}"""\n')
+716,718c869,890
+<                 
+<     def savebib(self, target):
+<         """Save the bibliographic entry as a bibtex entry"""
+---
+>         
+>         
+>     def write_bib(self, target=sys.stdout):
+>         """Creates a BibTeX entry for the entry
+>     write_bib()
+>         OR
+>     write_bib('/path/to/file')
+>         OR
+>     write_bib(file_object)
+> 
+> The write_bib() generates BibTeX code to represent the selected entry.  Each 
+> item in the bib dict is written as its own item in the BibTeX entry.  The tag
+> defining the entry type is determined by the Entry subclass.
+> 
+> All item values are encased in {} to prevent problems from whitespace or commas
+> in strings.  If strings contain brackets, they should always be in matching 
+> pairs or they should be escaped.
+> 
+> WARNING: items with data for which the str() function does not produce an output
+> that can be parsed by BibTeX will cause errors.  Classes that support such data
+> should define their own write_bib() method.
+> """
+721,741c893,895
+<                 return self.export(ff)
+<                 
+<         handled = []
+<         target.write(self.tag + '{' + self.name + '\n')
+<         for item,(allowed,inputhandler,codehandler,outputhandler) in self.mandatory.items():
+<             if item in self.bib:
+<                 if outputhandler:
+<                     value = outputhandler(self.bib[item])
+<                 else:
+<                     value = self.bib[item]
+<                 target.write('    {i:s} = {{{v:}}},\n'.format(i=item,v=value))
+<                 handled.append(item)
+<         for item,(allowed,inputhandler,codehandler,outputhandler) in self.optional.items():
+<             if item in self.bib:
+<                 if outputhandler:
+<                     value = outputhandler(self.bib[item])
+<                 else:
+<                     value = self.bib[item]
+<                 target.write('    {i:s} = {{{v:}}},\n'.format(i=item,v=value))
+<                 handled.append(item)
+<         allowedtypes, inputhandler, codehandler, outputhandler = self.default
+---
+>                 return self.write_txt(target=ff, doc=doc, width=width, posix=posix)
+>         
+>         target.write(f'{self.tag}{{{self.name},\n')
+743,760c897,901
+<             if item not in handled:
+<                 if outputhandler:
+<                     value = outputhandler(value)
+<                 target.write('    {i:s} = {{{v:}}},\n'.format(i=item,v=value))
+<         target.write('}\n\n')
+<         
+<     def get_rules(self,item):
+<         """Return the appropriate rules for the item
+<     allowed, inputhandler, codehandler, outputhandler = ee.get_rules('itemname')
+< """
+<         if item in self.mandatory:
+<             return self.mandatory[item]
+<         elif item in self.optional:
+<             return self.optional[item]
+<         else:
+<             return self.default
+< 
+<     def show(self, doc=True, width=None, posix=False):
+---
+>             target.write(f'  {item} = {{{value}}},\n')
+>         target.write('}\n')
+>         
+>         
+>     def write_txt(self, target=sys.stdout, doc=True, width=None, posix=False):
+761a903,907
+>     write_txt(doc=True, width=None, posix=False)
+>     
+> Each class that is intended for text output should supply its own write_txt()
+> method since formatting is always specific to the entry type.  This is a 
+> placeholder method that does nothing.
+763,787c909,910
+<         first = True
+<         out = ''
+<         # Build the format string
+<         lookfor = ['author', 'title', 'publisher', 'journal', 'booktitle', 'howpublished', 'address', 'number', 'volume', 'pages', 'year']
+<         for item in lookfor:
+<             if item in self.bib:
+<                 allowed, inputh, codeh, outputh = self.get_rules(item)
+<                 if first:
+<                     first = False
+<                     if outputh:
+<                         out += outputh(self.bib[item])
+<                     else:
+<                         out += self.bib[item]
+<                 else:
+<                     if outputh:
+<                         out += ', ' + outputh(self.bib[item])
+<                     else:
+<                         out += ', ' + self.bib[item]
+<                         
+<         if doc:
+<             out += '\n\n' + self.doc
+<             
+<         if width:
+<             return self._splitlines(out,width)
+<         return out
+---
+>         pass
+> 
+823a947
+> #   These are built loosely from the details on https://www.bibtex.com/e/entry-types/
+825a950
+> # ARTICLE
+828c953
+< pba = ArticleEntry(name)
+---
+> e = ArticleEntry(name)
+831,839c956,1008
+<     mandatory = {
+<         'author':((str,list,tuple,AuthorList), AuthorList, repr, str),
+<         'title': (str, None, repr, None),
+<         'journal': (str, None, repr, None),
+<         'year': ((int,str), int, repr, repr)}
+<     optional = {
+<         'volume': ((str,int), int, repr, repr),
+<         'number': ((str,int), int, repr, repr),
+<         'page': (str, None, repr, None)}
+---
+>     mandatory = {'author', 'title', 'journal', 'year', 'pages'}
+>     optional = {'volume', 'number'}
+> 
+>     def post(self, fatal=False, verbose=False, strict=False):
+>         """Post processing on entry objects.
+>     e.post(fatal=False, verbose=False, strict=False)
+> 
+> The post() method on each entry is run by a MasterColleciton's load() method
+> when reading entries into the collection.  It checks the entry for data type and
+> format.
+> """
+>         # Check for mandatory and/or unrecognized items in the entry
+>         Entry.post(self, fatal=fatal, verbose=verbose, strict=strict)
+>         err = False
+>         # Either volume or number should be present
+>         if 'volume' not in self.bib and 'number' not in self.bib:
+>             sys.stderr.write(f'ArticleEntry.post: No volume or number item in entry {self.name}\n')
+>             if self.sourcefile:
+>                 sys.stderr.write(f'ArticleEntry.post: defined in file: {self.sourcefile}\n')
+>             if fatal:
+>                 raise Exception('ArticleEntry.post')
+>         
+>         # Force the authors to be an AuthorList item
+>         self._convert('author', AuthorList, fatal)
+>         self._convert('volume', int, fatal)
+>         self._convert('number', int, fatal)
+>         self._convert('month', Month, fatal)
+>         self._convert('year', int, fatal)
+>         
+>         
+>     def write_txt(self, target=sys.stdout, doc=True, width=None, posix=False):
+>         """Return a string appropriate for printing to a terminal
+>     write_txt()
+>         OR
+>     write_txt(target = '/path/to/file')
+>         OR
+>     write_txt(target = file_object)
+>     
+> Writes the bibliographic entry formatted as readable text.  There are keywords 
+> that configure its behavior:
+> 
+> doc     If True, the notes stored in the doc attribute are also printed.
+> 
+> width   If width is set to an integer, it will determine the maximum line length
+>         before a line break is inserted.  If it is unset, the string will be
+>         returned as a single line.
+>         
+> posix   If True, posix terminal formatting escape characters will be inserted
+>         for bold and italic fonts where appropriate.
+> """
+>         if isinstance(target, str):
+>             with open(target,'w') as ff:
+>                 return self.write_txt(target=ff, doc=doc, width=width, posix=posix)
+841,842c1010,1012
+<     def show(self, doc=True, width=None, posix=False):
+<         out = ', "{title:s}," '
+---
+>         normal = ''
+>         italic = ''
+>         bold = ''
+844,867c1014,1028
+<             out += '\033[3m{journal:s}\033[0m, '
+<             if 'volume' in self.bib:
+<                 out += '\033[1m{volume:}\033[0m'
+<                 if 'number' in self.bib:
+<                     out += '({number:}), '
+<                 else:
+<                     out += ', '
+<             elif 'number' in self.bib:
+<                 out += '\033[1m{number:}\033[0m, '
+<         else:
+<             out += '{journal:s}, '
+<             if 'volume' in self.bib:
+<                 out += '{volume:}'
+<                 if 'number' in self.bib:
+<                     out += '({number:}), '
+<                 else:
+<                     out += ', '
+<             elif 'number' in self.bib:
+<                 out += '{number:}, '
+< 
+<         if 'page' in self.bib:
+<             out += '{page:}, '
+<         out += '{year:}.'
+<         out = self.author.show() + out.format(**self.bib)
+---
+>             normal = '\033[0m'
+>             italic = '\033[3m'
+>             bold = '\033[1m'
+>         
+>         # First, assemble a string from the volume and number
+>         vn = ''
+>         if 'volume' in self:
+>             if 'number' in self:
+>                 vn = f'{bold}{self.volume}{normal}({self.number})'
+>             else:
+>                 vn = f'{bold}{self.volume}{normal}'
+>         elif 'number' in self:
+>             vn = f'{bold}{self.number}{normal}'
+>         # Assemble the entire entry
+>         out = f'{self.author.show()}, {self.title}, {italic}{self.journal}{normal}, {vn}, {self.pages}, {self._date()}.\n'
+869,870c1030,1031
+<             out += '\n' + self.doc
+<             
+---
+>             out += self.doc
+>         # Adjust the line width?
+872,873c1033,1034
+<             return self._splitlines(out,width)
+<         return out
+---
+>             out = self._splitlines(out,width)
+>         target.write(out)
+875,888c1036,1041
+< class ReportEntry(Entry):
+<     """Eikosi Report Entry
+< pba = ReportEntry(name)
+< """
+<     tag = '@TECHREPORT'
+<     mandatory = {
+<         'author':((str,list,tuple,AuthorList), AuthorList, repr, str),
+<         'title': (str, None, repr, None),
+<         'year': ((int,str), int, repr, repr)}
+<     optional = {
+<         'number': (str, None, repr, None),
+<         'institution': (str, None, repr, None),
+<         'month': (str, None, repr, None),
+<         'day': ((str,int), int, repr, repr)}
+---
+> 
+> # BOOK        
+> class BookEntry(Entry):
+>     tag = '@BOOK'
+>     mandatory = {'author', 'title', 'publisher', 'year', 'address'}
+>     optional = {'edition'}
+890,895c1043,1066
+<     def show(self, doc=True, width=None, posix=False):
+<         out = ', "{title:s}," '
+<         if posix:
+<             out += '\033[3m{institution:s}\033[0m, '
+<         else:
+<             out += '{institution:s}, '
+---
+>     def post(self, fatal=False, verbose=False, strict=False):
+>         """Post processing on entry objects.
+>     e.post(fatal=False, verbose=False, strict=False)
+> 
+> The post() method on each entry is run by a MasterColleciton's load() method
+> when reading entries into the collection.  It checks the entry for data type and
+> format.
+> """
+>         # Check for mandatory and/or unrecognized items in the entry
+>         Entry.post(self, fatal=fatal, verbose=verbose, strict=strict)
+>         # Force the authors to be an AuthorList item
+>         self._convert('author', AuthorList, fatal)
+>         self._convert('year', int, fatal)
+> 
+>     def write_txt(self, target=sys.stdout, doc=True, width=None, posix=False):
+>         """Return a string appropriate for printing to a terminal
+>     write_txt()
+>         OR
+>     write_txt(target = '/path/to/file')
+>         OR
+>     write_txt(target = file_object)
+>     
+> Writes the bibliographic entry formatted as readable text.  There are keywords 
+> that configure its behavior:
+897,902c1068
+<         months = ['?? ', 'Jan. ', 'Feb. ', 'Mar. ', 'Apr. ', 'May ', 'June ', 'July ', 'Aug. ', 'Sep. ', 'Nov. ', 'Dec. ']
+<         if 'day' in self.bib:
+<             out += '{day:d} '
+<         if 'month' in self.bib:
+<             out += months[self.bib['month']]
+<         out += '{year:d}.'
+---
+> doc     If True, the notes stored in the doc attribute are also printed.
+904c1070,1094
+<         out = self.author.show() + out.format(**self.bib)
+---
+> width   If width is set to an integer, it will determine the maximum line length
+>         before a line break is inserted.  If it is unset, the string will be
+>         returned as a single line.
+>         
+> posix   If True, posix terminal formatting escape characters will be inserted
+>         for bold and italic fonts where appropriate.
+> """
+>         if isinstance(target, str):
+>             with open(target,'w') as ff:
+>                 return self.write_txt(target=ff, doc=doc, width=width, posix=posix)
+>         
+>         normal = ''
+>         italic = ''
+>         bold = ''
+>         if posix:
+>             normal = '\033[0m'
+>             italic = '\033[3m'
+>             bold = '\033[1m'
+>         
+>         # Assemble the entire entry
+>         out = f'{self.author.show()}, {italic}{self.title}{normal}'
+>         if 'edition' in self:
+>             out += f', {self.edition}'
+>         out += f', {self.publisher}, {self.address}, {self._date(yearfmt=bold, normal=normal)}.\n'
+>         
+906c1096,1097
+<             out += '\n' + self.doc
+---
+>             out += self.doc
+>         # Adjust the line width?
+908,913c1099,1105
+<             return self._splitlines(out,width)
+<         return out
+<         
+< class ProceedingsEntry(Entry):
+<     """Eikosi Proceedings Entry
+< pba = ProceedingsEntry(name)
+---
+>             out = self._splitlines(out,width)
+>         target.write(out)
+> 
+> # INPROCEEDINGS
+> class ConferenceEntry(Entry):
+>     """Eikosi Conference Entry
+> e = ConferenceEntry(name)
+916,924c1108,1135
+<     mandatory = {
+<         'author': ( (str,list,tuple,AuthorList), AuthorList, repr, str),
+<         'title': ( str, None, repr, None),
+<         'booktitle': (str, None, repr, None),
+<         'year': ((int,str), int, repr, repr)}
+<     optional = {
+<         'volume': ((str,int), int, repr, repr),
+<         'number': ((str,int), int, repr, repr),
+<         'page': (str, None, repr, repr)}
+---
+>     mandatory = {'author', 'title', 'booktitle', 'year'}
+>     optional = {'series', 'pages', 'publisher', 'address', 'month', 'day'}
+> 
+>     def post(self, fatal=False, verbose=False, strict=False):
+>         """Post processing on entry objects.
+>     e.post(fatal=False, verbose=False, strict=False)
+> 
+> The post() method on each entry is run by a MasterColleciton's load() method
+> when reading entries into the collection.  It checks the entry for data type and
+> format.
+> """
+>         # Check for mandatory and/or unrecognized items in the entry
+>         Entry.post(self, fatal=fatal, verbose=verbose, strict=strict)
+>         # Force the authors to be an AuthorList item
+>         self._convert('author', AuthorList, fatal)
+>         self._convert('year', int, fatal)
+>         self._convert('month', Month, fatal)
+> 
+>     def write_txt(self, target=sys.stdout, doc=True, width=None, posix=False):
+>         """Return a string appropriate for printing to a terminal
+>     write_txt()
+>         OR
+>     write_txt(target = '/path/to/file')
+>         OR
+>     write_txt(target = file_object)
+>     
+> Writes the bibliographic entry formatted as readable text.  There are keywords 
+> that configure its behavior:
+926,927c1137,1152
+<     def show(self, doc=True, width=None, posix=False):
+<         out = ', "{title:s}," '
+---
+> doc     If True, the notes stored in the doc attribute are also printed.
+> 
+> width   If width is set to an integer, it will determine the maximum line length
+>         before a line break is inserted.  If it is unset, the string will be
+>         returned as a single line.
+>         
+> posix   If True, posix terminal formatting escape characters will be inserted
+>         for bold and italic fonts where appropriate.
+> """
+>         if isinstance(target, str):
+>             with open(target,'w') as ff:
+>                 return self.write_txt(target=ff, doc=doc, width=width, posix=posix)
+>         
+>         normal = ''
+>         italic = ''
+>         bold = ''
+929,954c1154,1168
+<             out += '\033[3m{booktitle:s}\033[0m, '
+<             if 'volume' in self.bib:
+<                 out += '\033[1m{volume:}\033[0m'
+<                 if 'number' in self.bib:
+<                     out += '({number:}), '
+<                 else:
+<                     out += ', '
+<             elif 'number' in self.bib:
+<                 out += '\033[1m{number:}\033[0m, '
+<         else:
+<             out += '"{title:s}," {journal:s}, '
+<             if 'volume' in self.bib:
+<                 out += '{volume:}'
+<                 if 'number' in self.bib:
+<                     out += '({number:}), '
+<                 else:
+<                     out += ', '
+<             elif 'number' in self.bib:
+<                 out += '{number:}, '
+< 
+<         if 'address' in self.bib:
+<             out += '{address:}, '
+< 
+<         if 'page' in self.bib:
+<             out += '{page:}, '
+<         out += '{year:}.'
+---
+>             normal = '\033[0m'
+>             italic = '\033[3m'
+>             bold = '\033[1m'
+>         
+>         # Assemble the entire entry
+>         out = f'{self.author.show()}, {self.title}, {italic}{self.booktitle}{normal}'
+>         if 'publisher' in self:
+>             out += f', {self.publisher}'
+>         if 'series' in self:
+>             out += f', {self.series}'
+>         if 'address' in self:
+>             out += f', {self.address}'
+>         if 'pages' in self:
+>             out += f', {self.pages}'
+>         out += f', {self.address}, {self._date(yearfmt=bold, normal=normal)}.\n'
+956d1169
+<         out = self.author.show() + out.format(**self.bib)
+958,959c1171,1172
+<             out += '\n' + self.doc
+< 
+---
+>             out += self.doc
+>         # Adjust the line width?
+961,962c1174,1225
+<             return self._splitlines(out,width)
+<         return out
+---
+>             out = self._splitlines(out,width)
+>         target.write(out)
+> 
+> ProceedingsEntry = ConferenceEntry
+> 
+> # MANUAL
+> class ManualEntry(Entry):
+>     """Eikosi Manual Entry
+> e = ManualEntry(name)
+> """
+>     tag = '@MANUAL'
+>     mandatory = {'title', 'organization', 'year'}
+>     optional = {'author', 'address'}
+> 
+>     def post(self, fatal=False, verbose=False, strict=False):
+>         """Post processing on entry objects.
+>     e.post(fatal=False, verbose=False, strict=False)
+> 
+> The post() method on each entry is run by a MasterColleciton's load() method
+> when reading entries into the collection.  It checks the entry for data type and
+> format.
+> """
+>         # Check for mandatory and/or unrecognized items in the entry
+>         Entry.post(self, fatal=fatal, verbose=verbose, strict=strict)
+>         
+>         # Force the authors to be an AuthorList item
+>         self._convert('author', AuthorList, fatal)
+>         self._convert('year', int, fatal)
+> 
+>     def write_txt(self, target=sys.stdout, doc=True, width=None, posix=False):
+>         """Return a string appropriate for printing to a terminal
+>     write_txt()
+>         OR
+>     write_txt(target = '/path/to/file')
+>         OR
+>     write_txt(target = file_object)
+>     
+> Writes the bibliographic entry formatted as readable text.  There are keywords 
+> that configure its behavior:
+> 
+> doc     If True, the notes stored in the doc attribute are also printed.
+> 
+> width   If width is set to an integer, it will determine the maximum line length
+>         before a line break is inserted.  If it is unset, the string will be
+>         returned as a single line.
+>         
+> posix   If True, posix terminal formatting escape characters will be inserted
+>         for bold and italic fonts where appropriate.
+> """
+>         if isinstance(target, str):
+>             with open(target,'w') as ff:
+>                 return self.write_txt(target=ff, doc=doc, width=width, posix=posix)
+963a1227,1249
+>         normal = ''
+>         italic = ''
+>         bold = ''
+>         if posix:
+>             normal = '\033[0m'
+>             italic = '\033[3m'
+>             bold = '\033[1m'
+>         
+>         out = ''
+>         # Assemble the entire entry
+>         if 'author' in self:
+>             out += f'{self.author.show()}, '
+>         out += f'{italic}{self.title}{normal}, {self.organization}, '
+>         if 'address' in self:
+>             out += f'{self.address}, '
+>         out += f'{self._date()}.\n'
+>         
+>         if doc and self.doc:
+>             out += self.doc
+>         # Adjust the line width?
+>         if width:
+>             out = self._splitlines(out,width)
+>         target.write(out)
+965,967c1251,1293
+< class PatentEntry(Entry):
+<     """Eikosi Proceedings Entry
+< pba = PatentEntry(name)
+---
+> # MASTERTHESIS
+> class MastersEntry(Entry):
+>     """Eikosi Masters Thesis Entry
+> e = MastersEntry(name)
+> """
+>     tag = '@MASTERSTHESIS'
+>     mandatory = {'author', 'title', 'school', 'year'}
+>     optional = {'address', 'month', 'day'}
+>     
+>     def post(self, fatal=False, verbose=False, strict=False):
+>         """Post processing on entry objects.
+>     e.post(fatal=False, verbose=False, strict=False)
+> 
+> The post() method on each entry is run by a MasterColleciton's load() method
+> when reading entries into the collection.  It checks the entry for data type and
+> format.
+> """
+>         # Check for mandatory and/or unrecognized items in the entry
+>         Entry.post(self, fatal=fatal, verbose=verbose, strict=strict)
+>         # Force the authors to be an AuthorList item
+>         self._convert('author', AuthorList, fatal)
+>         self._convert('month', Month, fatal)
+>         self._convert('year', int, fatal)
+>         
+>     def write_txt(self, target=sys.stdout, doc=True, width=None, posix=False):
+>         """Return a string appropriate for printing to a terminal
+>     write_txt()
+>         OR
+>     write_txt(target = '/path/to/file')
+>         OR
+>     write_txt(target = file_object)
+>     
+> Writes the bibliographic entry formatted as readable text.  There are keywords 
+> that configure its behavior:
+> 
+> doc     If True, the notes stored in the doc attribute are also printed.
+> 
+> width   If width is set to an integer, it will determine the maximum line length
+>         before a line break is inserted.  If it is unset, the string will be
+>         returned as a single line.
+>         
+> posix   If True, posix terminal formatting escape characters will be inserted
+>         for bold and italic fonts where appropriate.
+968a1295,1322
+>         if isinstance(target, str):
+>             with open(target,'w') as ff:
+>                 return self.write_txt(target=ff, doc=doc, width=width, posix=posix)
+>         
+>         normal = ''
+>         italic = ''
+>         bold = ''
+>         if posix:
+>             normal = '\033[0m'
+>             italic = '\033[3m'
+>             bold = '\033[1m'
+>         
+>         out = f'{self.author.show()}, {italic}{self.title}{normal}, {self.school}, '
+>         if 'address' in self:
+>             out += f'{self.address}, '
+>         if 'month' in self:
+>             out += f'{self.month.show()}, '
+>         out += f'{self._date(yearfmt=bold, normal=normal)}.\n'
+>         
+>         if doc and self.doc:
+>             out += self.doc
+>         # Adjust the line width?
+>         if width:
+>             out = self._splitlines(out,width)
+>         target.write(out)
+> 
+> # MISC
+> class MiscEntry(Entry):
+970,977c1324,1351
+<     mandatory = {
+<         'author': ((str,list,tuple,AuthorList), AuthorList, repr, str),
+<         'title': (str, None, repr, None),
+<         'number': (str, None, repr, None),
+<         'year': ((int,str), int, repr, repr)}
+<     optional = {
+<         'assignee': (str, None, repr, None),
+<         'nationality': (str, None, repr, None)}
+---
+>     mandatory = {'title', 'howpublished', 'year'}
+>     optional = {'note', 'author', 'month', 'day'}
+>     
+>     def post(self, fatal=False, verbose=False, strict=False):
+>         """Post processing on entry objects.
+>     e.post(fatal=False, verbose=False, strict=False)
+> 
+> The post() method on each entry is run by a MasterColleciton's load() method
+> when reading entries into the collection.  It checks the entry for data type and
+> format.
+> """
+>         # Check for mandatory and/or unrecognized items in the entry
+>         Entry.post(self, fatal=fatal, verbose=verbose, strict=strict)
+>         # Force the authors to be an AuthorList item
+>         self._convert('author', AuthorList, fatal)
+>         self._convert('month', Month, fatal)
+>         self._convert('year', int, fatal)
+>         
+>     def write_txt(self, target=sys.stdout, doc=True, width=None, posix=False):
+>         """Return a string appropriate for printing to a terminal
+>     write_txt()
+>         OR
+>     write_txt(target = '/path/to/file')
+>         OR
+>     write_txt(target = file_object)
+>     
+> Writes the bibliographic entry formatted as readable text.  There are keywords 
+> that configure its behavior:
+979,981c1353,1361
+<     # Overload the export method
+<     def savebib(self, target):
+<         """Save the bibliographic entry as a bibtex entry"""
+---
+> doc     If True, the notes stored in the doc attribute are also printed.
+> 
+> width   If width is set to an integer, it will determine the maximum line length
+>         before a line break is inserted.  If it is unset, the string will be
+>         returned as a single line.
+>         
+> posix   If True, posix terminal formatting escape characters will be inserted
+>         for bold and italic fonts where appropriate.
+> """
+984,1000c1364
+<                 return self.export(ff)
+<                 
+<         target.write(self.tag + '{' + self.name + ',\n')
+<         # Manually construct the entry
+<         if 'author' in self.bib:
+<             target.write(f'    author = {{{str(self.author)}}},\n')
+<         if 'title' in self.bib:
+<             target.write(f'    title = {{{self.title}}},\n')
+<         if 'assignee' in self.bib:
+<             target.write(f'    note = {{{self.assignee:}}},\n')
+<         if 'number' in self.bib:
+<             if 'nationality' in self.bib:
+<                 target.write(f'    howpublished = {{{self.nationality} Pat. N. {self.number}}},\n')
+<             else:
+<                 target.write(f'    howpublished = {{Pat. N. {self.number:d}}},\n')
+<         if 'year' in self.bib:
+<             target.write(f'    year = {{{self.year}}},\n')
+---
+>                 return self.write_txt(target=ff, doc=doc, width=width, posix=posix)
+1002,1015c1366,1372
+<         handled = ['author', 'title', 'assignee', 'number', 'year', 'nationality']
+<         for item,value in self.bib.items():
+<             if item not in handled:
+<                 target.write(f'    {item} = {{{value}}},\n')
+<         target.write('}\n\n')
+<         
+<     def show(self, doc=True, width=None, posix=False):
+<         out = ', "{title:s}," '
+<         if 'nationality' in self.bib:
+<             out += '{nationality:s} '
+<         out += 'Patent {number:}, ' 
+<         if 'assignee' in self.bib:
+<             out += 'asgn. {assignee:s}, '
+<         out += '{year:}.'
+---
+>         normal = ''
+>         italic = ''
+>         bold = ''
+>         if posix:
+>             normal = '\033[0m'
+>             italic = '\033[3m'
+>             bold = '\033[1m'
+1017c1374,1383
+<         out = self.author.show() + out.format(**self.bib)
+---
+>         out = ''
+>         if 'author' in self:
+>             out += f'{self.author.show()}, '
+>         out += f'{italic}{self.title}{normal}, {self.howpublished}, '
+>         if 'year' in self:
+>             out += f'{self._date(yearfmt=bold,normal=normal)}.'
+>         if 'note' in self:
+>             out += f' {self.note}'
+>         out += '\n'
+>             
+1019,1020c1385,1386
+<             out += '\n' + self.doc
+< 
+---
+>             out += self.doc
+>         # Adjust the line width?
+1022,1023c1388,1427
+<             return self._splitlines(out,width)
+<         return out
+---
+>             out = self._splitlines(out,width)
+>         target.write(out)
+>     
+> # PHDTHESIS
+> class PhdEntry(Entry):
+>     tag = '@PHDTHESIS'
+>     mandatory = {'author', 'title', 'school', 'year'}
+>     optional = {'address', 'month', 'day'}
+> 
+>     def post(self, fatal=False, verbose=False, strict=False):
+>         """Post processing on entry objects.
+>     e.post(fatal=False, verbose=False, strict=False)
+> 
+> The post() method on each entry is run by a MasterColleciton's load() method
+> when reading entries into the collection.  It checks the entry for data type and
+> format.
+> """
+>         # Check for mandatory and/or unrecognized items in the entry
+>         Entry.post(self, fatal=fatal, verbose=verbose, strict=strict)
+>         # Force the authors to be an AuthorList item
+>         self._convert('author', AuthorList, fatal)
+>         self._convert('month', Month, fatal)
+>         self._convert('year', int, fatal)
+>         
+>     def write_txt(self, target=sys.stdout, doc=True, width=None, posix=False):
+>         """Return a string appropriate for printing to a terminal
+>     write_txt()
+>         OR
+>     write_txt(target = '/path/to/file')
+>         OR
+>     write_txt(target = file_object)
+>     
+> Writes the bibliographic entry formatted as readable text.  There are keywords 
+> that configure its behavior:
+> 
+> doc     If True, the notes stored in the doc attribute are also printed.
+> 
+> width   If width is set to an integer, it will determine the maximum line length
+>         before a line break is inserted.  If it is unset, the string will be
+>         returned as a single line.
+1024a1429,1434
+> posix   If True, posix terminal formatting escape characters will be inserted
+>         for bold and italic fonts where appropriate.
+> """
+>         if isinstance(target, str):
+>             with open(target,'w') as ff:
+>                 return self.write_txt(target=ff, doc=doc, width=width, posix=posix)
+1026,1044c1436,1449
+< class BookEntry(Entry):
+<     tag = '@BOOK'
+<     mandatory = {
+<         'author': ((str,list,tuple,AuthorList), AuthorList, repr, str),
+<         'title': (str, None, repr, None),
+<         'publisher': (str, None, repr, None),
+<         'year': ((int,str), int, repr, repr)}
+<     optional = {
+<         'address': (str, None, repr, None),
+<         'edition': (str, None, repr, None)}
+<         
+<     def show(self, doc=True, width=None, posix=False):
+<         out = ', "{title:s}," '
+<         if 'edition' in self.bib:
+<             out += '{edition:s}, '
+<         out += '{publisher:s}, '
+<         if 'address' in self.bib:
+<             out += '{address:s}, '
+<         out += '{year:}.'
+---
+>         normal = ''
+>         italic = ''
+>         bold = ''
+>         if posix:
+>             normal = '\033[0m'
+>             italic = '\033[3m'
+>             bold = '\033[1m'
+>         
+>         out = f'{self.author.show()}, {italic}{self.title}{normal}, {self.school}, '
+>         if 'address' in self:
+>             out += f'{self.address}, '
+>         if 'month' in self:
+>             out += f'{self.month.show()}, '
+>         out += f'{self._date(yearfmt=bold,normal=normal)}.\n'
+1046d1450
+<         out = self.author.show() + out.format(**self.bib)
+1048c1452,1491
+<             out += '\n' + self.doc
+---
+>             out += self.doc
+>         # Adjust the line width?
+>         if width:
+>             out = self._splitlines(out,width)
+>         target.write(out)
+> 
+> # TECHREPORT
+> class ReportEntry(Entry):
+>     """Eikosi Report Entry
+> e = ReportEntry(name)
+> """
+>     tag = '@TECHREPORT'
+>     mandatory = {'author', 'title', 'year'}
+>     optional = {'number', 'institution', 'month', 'day', 'address'}
+> 
+>     def post(self, fatal=False, verbose=False, strict=False):
+>         """Post processing on entry objects.
+>     e.post(fatal=False, verbose=False, strict=False)
+> 
+> The post() method on each entry is run by a MasterColleciton's load() method
+> when reading entries into the collection.  It checks the entry for data type and
+> format.
+> """
+>         # Check for mandatory and/or unrecognized items in the entry
+>         Entry.post(self, fatal=fatal, verbose=verbose, strict=strict)
+>         # Force the authors to be an AuthorList item
+>         self._convert('author', AuthorList, fatal)
+>         self._convert('month', Month, fatal)
+>         self._convert('year', int, fatal)
+>         
+>     def write_txt(self, target=sys.stdout, doc=True, width=None, posix=False):
+>         """Return a string appropriate for printing to a terminal
+>     write_txt()
+>         OR
+>     write_txt(target = '/path/to/file')
+>         OR
+>     write_txt(target = file_object)
+>     
+> Writes the bibliographic entry formatted as readable text.  There are keywords 
+> that configure its behavior:
+1049a1493,1521
+> doc     If True, the notes stored in the doc attribute are also printed.
+> 
+> width   If width is set to an integer, it will determine the maximum line length
+>         before a line break is inserted.  If it is unset, the string will be
+>         returned as a single line.
+>         
+> posix   If True, posix terminal formatting escape characters will be inserted
+>         for bold and italic fonts where appropriate.
+> """
+>         if isinstance(target, str):
+>             with open(target,'w') as ff:
+>                 return self.write_txt(target=ff, doc=doc, width=width, posix=posix)
+>         
+>         normal = ''
+>         italic = ''
+>         bold = ''
+>         if posix:
+>             normal = '\033[0m'
+>             italic = '\033[3m'
+>             bold = '\033[1m'
+>         
+>         out = f'{self.author.show()}, {italic}{self.title}{normal}, {self.institution}, '
+>         if 'address' in self:
+>             out += f'{self.address}, '
+>         out += f'{self._date(yearfmt=bold,normal=normal)}.\n'
+>         
+>         if doc and self.doc:
+>             out += self.doc
+>         # Adjust the line width?
+1051,1052c1523,1525
+<             return self._splitlines(out,width)
+<         return out
+---
+>             out = self._splitlines(out,width)
+>         target.write(out)
+> 
+1054c1527,1533
+< class WebsiteEntry(Entry):
+---
+> # UNPUBLISHED
+> 
+> # CUSTOM PATENT ENTRY
+> class PatentEntry(Entry):
+>     """Eikosi Proceedings Entry
+> e = PatentEntry(name)
+> """
+1056,1062c1535,1564
+<     mandatory = {
+<         'url': (str, None, repr, None)}
+<     optional = {
+<         'title': (str, None, repr, None),
+<         'author': ((str, list, tuple, AuthorList), AuthorList, repr, str),
+<         'institution': (str, None, repr, None),
+<         'accessed': (str, None, repr, None)}
+---
+>     mandatory = {'author', 'title', 'number', 'year'}
+>     optional = {'assignee', 'nationality', 'month', 'day'}
+>     
+>     def post(self, fatal=False, verbose=False, strict=False):
+>         """Post processing on entry objects.
+>     e.post(fatal=False, verbose=False, strict=False)
+> 
+> The post() method on each entry is run by a MasterColleciton's load() method
+> when reading entries into the collection.  It checks the entry for data type and
+> format.
+> """
+>         # Check for mandatory and/or unrecognized items in the entry
+>         Entry.post(self, fatal=fatal, verbose=verbose, strict=strict)
+>         # Force the authors to be an AuthorList item
+>         self._convert('author', AuthorList, fatal)
+>         self._convert('month', Month, fatal)
+>         self._convert('year', int, fatal)
+>         self._convert('number', int, fatal)
+>         
+>         
+>     def write_txt(self, target=sys.stdout, doc=True, width=None, posix=False):
+>         """Return a string appropriate for printing to a terminal
+>     write_txt()
+>         OR
+>     write_txt(target = '/path/to/file')
+>         OR
+>     write_txt(target = file_object)
+>     
+> Writes the bibliographic entry formatted as readable text.  There are keywords 
+> that configure its behavior:
+1064c1566,1570
+<     def show(self, doc=True, width=None, posix=False):
+---
+> doc     If True, the notes stored in the doc attribute are also printed.
+> 
+> width   If width is set to an integer, it will determine the maximum line length
+>         before a line break is inserted.  If it is unset, the string will be
+>         returned as a single line.
+1066,1069c1572,1581
+<         out = ''
+<         if 'title' in self.bib:
+<             out += '{title:s}, '
+<             
+---
+> posix   If True, posix terminal formatting escape characters will be inserted
+>         for bold and italic fonts where appropriate.
+> """
+>         if isinstance(target, str):
+>             with open(target,'w') as ff:
+>                 return self.write_txt(target=ff, doc=doc, width=width, posix=posix)
+>         
+>         normal = ''
+>         italic = ''
+>         bold = ''
+1071,1082c1583,1591
+<             out = '\033[4m{url:s}\044[0m'
+<         else:
+<             out = '{url:s}'
+<             
+<         if 'institution' in self.bib:
+<             out += ', {institution:s}'
+<         if 'accessed' in self.bib:
+<             out += ', [Accessed {accessed:s}]'
+<         out += '.'
+<         out = out.format(**self.bib)
+<         if 'author' in self.bib:
+<             out = author.show() + ', ' + out
+---
+>             normal = '\033[0m'
+>             italic = '\033[3m'
+>             bold = '\033[1m'
+>         
+>         out = f'{self.author.show()}, {italic}{self.title}{normal}, '
+>         if 'nationality' in self:
+>             out += f'{self.nationality} '
+>         out += f'Pat. {bold}{self.number:,d}{normal}, {self._date()}.'
+>         
+1084,1085c1593,1594
+<             out += '\n' + self.doc
+< 
+---
+>             out += self.doc
+>         # Adjust the line width?
+1087,1091c1596,1632
+<             return self._splitlines(out,width)
+<         return out
+<         
+<             
+< class MiscEntry(Entry):
+---
+>             out = self._splitlines(out,width)
+>         target.write(out)
+>     
+>     
+>     def write_bib(self, target=sys.stdout):
+>         """Creates a BibTeX entry for the entry
+>     write_bib()
+>         OR
+>     write_bib('/path/to/file')
+>         OR
+>     write_bib(file_object)
+> 
+> The write_bib() generates BibTeX code to represent the selected entry.  Each 
+> item in the bib dict is written as its own item in the BibTeX entry.  The tag
+> defining the entry type is determined by the Entry subclass.
+> 
+> All item values are encased in {} to prevent problems from whitespace or commas
+> in strings.  If strings contain brackets, they should always be in matching 
+> pairs or they should be escaped.
+> 
+> WARNING: items with data for which the str() function does not produce an output
+> that can be parsed by BibTeX will cause errors.  Classes that support such data
+> should define their own write_bib() method.
+> """
+>         # Build a miscellaneous entry
+>         e = MiscEntry(self.name)
+>         e.author = self.author
+>         if 'nationality' in self:
+>             e.howpublished = f'{self.nationality} Patent {self.number}'
+>         else:
+>             e.howpublished = f'Patent {self.number}'
+>         e.year = self.year
+>         e.title = self.title
+>         e.write_bib(target=target)
+>     
+> # CUSTOM WEBSITE ENTRY
+> class WebsiteEntry(Entry):
+1092a1634,1664
+>     mandatory = {'url'}
+>     optional = {'title', 'author', 'institution', 'month', 'day', 'year'}
+> 
+>     def post(self, fatal=False, verbose=False, strict=False):
+>         """Post processing on entry objects.
+>     e.post(fatal=False, verbose=False, strict=False)
+> 
+> The post() method on each entry is run by a MasterColleciton's load() method
+> when reading entries into the collection.  It checks the entry for data type and
+> format.
+> """
+>         # Check for mandatory and/or unrecognized items in the entry
+>         Entry.post(self, fatal=fatal, verbose=verbose, strict=strict)
+>         # Force the authors to be an AuthorList item
+>         self._convert('author', AuthorList, fatal)
+>         self._convert('month', Month, fatal)
+>         self._convert('year', int, fatal)
+>         
+>         
+>     def write_txt(self, target=sys.stdout, doc=True, width=None, posix=False):
+>         """Return a string appropriate for printing to a terminal
+>     write_txt()
+>         OR
+>     write_txt(target = '/path/to/file')
+>         OR
+>     write_txt(target = file_object)
+>     
+> Writes the bibliographic entry formatted as readable text.  There are keywords 
+> that configure its behavior:
+> 
+> doc     If True, the notes stored in the doc attribute are also printed.
+1094,1095c1666,1710
+<     def show(self, doc=True, width=None, posix=False):
+<         return 'MiscEntry(' + self.name + ')'
+---
+> width   If width is set to an integer, it will determine the maximum line length
+>         before a line break is inserted.  If it is unset, the string will be
+>         returned as a single line.
+>         
+> posix   If True, posix terminal formatting escape characters will be inserted
+>         for bold and italic fonts where appropriate.
+> """
+>         if isinstance(target, str):
+>             with open(target,'w') as ff:
+>                 return self.write_txt(target=ff, doc=doc, width=width, posix=posix)
+>         
+>         normal = ''
+>         italic = ''
+>         bold = ''
+>         if posix:
+>             normal = '\033[0m'
+>             italic = '\033[3m'
+>             bold = '\033[1m'
+>         
+>         out = ''
+>         if 'author' in self:
+>             out += f'{self.author.show()}, '
+>         if 'title' in self:
+>             out += f'{italic}{self.title}{normal}, '
+>         if 'institution' in self:
+>             out += f'{self.institution}, '
+>         out += f'{bold}{self.url}{normal}'
+>         if 'year' in self:
+>             out += f', accessed: {self._date()}'
+>         
+>         
+>         if doc and self.doc:
+>             out += self.doc
+>         # Adjust the line width?
+>         if width:
+>             out = self._splitlines(out,width)
+>         target.write(out)
+>     
+>     def write_bib(self, target=sys.stdout):
+>         """Creates a BibTeX entry for the entry
+>     write_bib()
+>         OR
+>     write_bib('/path/to/file')
+>         OR
+>     write_bib(file_object)
+1096a1712,1735
+> The write_bib() generates BibTeX code to represent the selected entry.  Each 
+> item in the bib dict is written as its own item in the BibTeX entry.  The tag
+> defining the entry type is determined by the Entry subclass.
+> 
+> All item values are encased in {} to prevent problems from whitespace or commas
+> in strings.  If strings contain brackets, they should always be in matching 
+> pairs or they should be escaped.
+> 
+> WARNING: items with data for which the str() function does not produce an output
+> that can be parsed by BibTeX will cause errors.  Classes that support such data
+> should define their own write_bib() method.
+> """
+>         # Build a miscellaneous entry
+>         e = MiscEntry(self.name)
+>         if 'title' in self:
+>             e.title = self.title
+>         if 'author' in self:
+>             e.author = self.author
+>         if 'institution' in self:
+>             e.howpublished = f'{self.institution}, {self.url}'
+>         else:
+>             e.howpublished = self.url
+>         e.note = f'accessed: {self._date()}'
+>         e.write_bib(target=target)
+1188a1828
+>         self._sorted = {}
+1233,1234c1873,1878
+< Collection into this Collection.  Only the collections and entries dicts are
+< affected.
+---
+> Collection into this Collection.  All entries that belong to c2 will also 
+> become members of c, and the same is true of the child sub-collections of c2. 
+> Membership in c is the only thing that will be affected.  The name doc string
+> and other meta data will not be affected.
+> 
+> If there are redundant 
+1237a1882,1883
+>         elif isinstance(source, MasterCollection):
+>             raise TypeError('Collection.update: MasterCollections should not use update(). See merge() instead.')
+1272a1919,1961
+> 
+>     def duplicates(self):
+>         """DUPLICATES
+>     dup = c.duplicates()
+>     
+> Generates a list of lists of possible duplicate entries in the collection.
+> """
+>         # This iterator returns a tuple pair with a "fingerprint" of each entry
+>         # so that all entries may be sorted by their fingerprints
+>         def _dup_iter(self):
+>             for e in self:
+>                 result = ''
+>                 if 'author' in e:
+>                     result += e.author.names[0][-1]
+>                 if 'title' in e:
+>                     result += e.title
+>                 yield (_fingerprint(result), e)
+>         
+>         candidates = sorted(_dup_iter(self))
+>         duplicates = []
+>         active = False
+>         last_fp = None
+>         last_e = None
+>         
+>         for fp,e in candidates:
+>             # Check for a match with the last fingerprint
+>             # If there is a match, then add it to the duplicates list
+>             if last_fp == fp:
+>                 # If there is already an active match, append to the last sub-list
+>                 if active:
+>                     duplicates[-1].append(self)
+>                 # If this is a new match, create a new sub-list
+>                 else:
+>                     duplicates.append([last_e, e])
+>                     active=True
+>             else:
+>                 active=False
+>                 
+>             last_fp = fp
+>             last_e = e
+>             
+>         return duplicates
+>         
+1376a2066,2168
+>         
+>     def find(self, kwarg**):
+>         """Returns a collection of entries that match the search criteria
+>     c2 = c.find(..., item=regex, ...)
+>         OR
+>     c2 = c.find(..., item=number, ...)
+>         OR
+>     c2 = c.find(..., item=(min, max), ...)
+> 
+> Each keyword-value pair is a bibliographic item and a value of some kind against
+> which the entries will be compared.  All entries returned in collection, c2, 
+> must have the named items, and they must "match" the criteria named in the 
+> values.
+> 
+> If the value is a string, it is interpreted as a regular expression, and 
+> entries' values for "item" must match that expression (see the re Python module
+> for more information).  When the 
+> 
+> """
+>         pass
+>         
+>         
+>     def sort(self, by, refresh=False, ascending=True, omit=False):
+>         """Return a sorted list of entries from the collection
+>     sortedlist = c.sort(by='item')
+> 
+> Returns a list of entries in ascending order by the bibliographic item name 
+> passed to the "by" keyword.  Values in these entries must have a method for the 
+> < operation.  Entries that do not have the item are appended to the end of the
+> list, but they may be omitted by setting the omit keyword to True.
+> 
+> The list may be reversed into descending order by setting the ascending keyword
+> to False.  
+> 
+> The result of each call to the sort() method is stored in the collection so that
+> redundant calls to sort() simply return the stored list.  The stored list is 
+> always constructed in ascending=True, omit=False mode.  When sort() is called on
+> the same item, but with different keyword flags, the saved list is copied and 
+> modified appropriately.
+> 
+> If a user application modifies the list returned by sort(by), the modifications
+> will be persistent, but modifications to the list returned by 
+> sort(by, omit=True) will not be persistent.  
+> 
+> """
+> 
+>         if by not in self._sorted or refresh:
+>             # Initialize the result
+>             result = []
+>             # Loop through all entries in the list.
+>             for rlength,e in enumerate(self):
+>                 ei = e.__getattr__(by) if by in e else None
+>                 # If the element does not have the item, throw it to the end of the list
+>                 if (ei is None) or rlength==0 or result[-1].__getattr__(by) < ei:
+>                     result.append(e)
+>                 # Verify that the new element lies inside the list
+>                 elif not result[0].__getattr__(by) < ei:
+>                     result.insert(0,e)
+>                 # OK, start bisection search
+>                 else:
+>                     a = 0
+>                     b = rlength
+>                     count = 0
+>                     for count in range(int(log2(rlength))+2):
+>                         # Isolate a candidate entry in the list
+>                         c = (a+b)//2
+>                         candidate = result[c]
+>                         # Less than automatically fails if by is not in the candidate
+>                         if not by in candidate:
+>                             b = c
+>                         elif candidate.__getattr__(by) < ei:
+>                             a = c
+>                         else:
+>                             b = c
+>                         # Test for convergence
+>                         if b-a <= 1:
+>                             break
+>                     if b-a > 1:
+>                         raise Exception('ProtoCollection.sort: Unexpected exception in bisection sorting!')
+>                     result.insert(a+1, e)
+>             self._sorted[by] = result
+>         else:
+>             result = self._sorted[by]
+>             
+>         # OK, we have a sorted result, now deal with the keyword options
+>         # If the list needs to be modified, first make a copy
+>         if omit or not ascending:
+>             result = result.copy()
+>             # Search for the last result element that contains by
+>             for index in range(len(result),-1,-1):
+>                 if by in result[index]:
+>                     index += 1
+>                     break
+>             # index is now the first index where the entry does not have by
+>             if omit:
+>                 result = result[:index]
+>                 if not ascending:
+>                     result = result.reverse()
+>             elif not ascending:
+>                 result[:index] = result[:index].reverse()
+>                 
+>         return result
+>         
+1457,1462c2249,2259
+< The master collection class is similar to a collection, but with some important
+< differences.  The MasterCollection is assumed only to be created by load 
+< operations.  When Collections and SubCollections process a get() request, they
+< are required to check all of their children as well, but MasterCollections 
+< assume that their entries[] dict has a comprehensive list of all entries loaded,
+< and do not recurse into their child collections.
+---
+> There are some important difference that separate MasterCollections from other
+> Collections.  An Entry is said to belong to any instance of the Collection sub-
+> classes if the entry is a member of that Collection or any of its child 
+> Collections.  In this way, a Collection with no entries of its own could still
+> posess many entries through its child Collections, but the same is not true of
+> MasterCollection instances.
+> 
+> All Entries that belong to a MasterCollection MUST be linked directly in its
+> entries dictionary.  They may also belong to child Collections, but there may
+> not, under any circumstances, be an Entry that belongs to a child Collection
+> that is not explicitly registered by the MasterCollection.
+1466c2263,2264
+< after load will not be detected.
+---
+> after load will not be detected unless they are handled by the appropraite
+> class functions.  See update(), add(), addchild(), merge(),
+1470a2269,2271
+>         
+>     def __len__(self):
+>         return len(self.entries)
+1501a2303
+>         # If called with a string
+1520c2322
+< 
+---
+>         # If this is a file object
+1533a2336
+>             # Use a state variable to track whether any recognized types were found
+1540,1542c2343,2354
+<                     value.sourcefile = sourcefile
+<                     value.post(fatal=(not relax), verbose=relax)
+<                     self.entries[value.name] = value
+---
+>                     if value.name in self.entries:
+>                         sys.stdout.write(f'MasterCollection.load: Found conflicting definitions for entry: {value.name}\n')
+>                         originfile = self.entries[value.name].sourcefile
+>                         if originfile:
+>                             sys.stdout.write(f'MasterCollection.load: Originally defined in file: {originfile}\n')
+>                         if value.sourcefile:
+>                             sys.stdout.write(f'MasterCollection.load: Redundant entry found in file: {value.sourcefile}\n')
+>                         sys.stdout.write(f'MasterCollection.load: Ignoring the redundant entry!\n')
+>                     else:
+>                         value.sourcefile = sourcefile
+>                         value.post(fatal=(not relax))
+>                         self.entries[value.name] = value
+1549a2362,2364
+>             # Warn the user if there were no objects found.
+>             if nfound:
+>                 sys.stderr.write(f'MasterCollection.load: No recognized objects in file: {sourcefile}\n')
+1575c2390,2442
+<                 
+---
+> 
+>     def merge(self, target, overwrite=False, relax=False):
+>         """MERGE
+>     c1.merge(c2)
+>         OR
+>     c1.merge('/path/to/dir')
+>     
+> The merge method adds the contents of another MasterCollection object into this
+> MasterCollection.  If the first argument is a string, it is treated as a path
+> to a directory to load into a new MasterCollection, which will then be loaded.
+> 
+> Merging is similar to using the update() or addchild() methods, except that 
+> merging is unique to MasterCollections, and it includes the detection of 
+> redundant entries and collections.  
+> 
+> See also update(), addchild()
+> """
+>         # Make a recursive call if the argument is a string
+>         if isinstance(target,str):
+>             b = MasterCollection()
+>             b.load(target, relax=relax)
+>             return self.merge(b)
+>         elif not isinstance(target, MasterCollection):
+>             raise Exception('MasterCollection.merge: target is not a MasterCollection!')
+> 
+>         conflict = 0
+>         # First, check for redundant entries by name
+>         redundant = set(self.entries.keys()).intersection(set(target.entries.keys()))
+>         for entry in redundant:
+>             if not self.entries[entry] is target.entries[entry]:
+>                 conflict += 1
+>                 sys.stderr.write(f'MasterCollection.merge: Conflicting definitions for entry: {entry}\n')
+> 
+>         # Now check for redundant collections
+>         redundant = set(self.children.keys()).intersection(set(target.children.keys()))
+>         for collection in redundant:
+>             if not self.children[collection] is target.children[collection]:
+>                 conflict += 1
+>                 sys.stderr.write(f'MasterCollection.merge: Conflicting definitions for collection: {collection}\n')
+>            
+>         if conflict:
+>             if overwrite:
+>                 sys.stderr.write(f'MasterCollection.merge: Overwriting {conflict} conflicts.\n')
+>             else:
+>                 sys.stderr.write(f'MasterCollection.merge: Identified {conflict} conflicts.\n')
+>                 sys.stderr.write(f'MasterCollection.merge: Set overwrite=True to suppress this exception.\n')
+>                 raise Exception(f'MasterCollection.merge: Redundant entries')
+>                     
+>         self.update(target)
+>         
+>     def addchild(self, cnew):
+>         
+>         
+1727c2594
+< def load(target):
+---
+> def load(target, *varg, **kwarg):
+1748c2615
+<     mc.load(target)
+---
+>     mc.load(target, *varg, **kwarg)
+1777c2644
+<         '@INPROCEEDINGS': ProceedingsEntry,
+---
+>         '@INPROCEEDINGS': ConferenceEntry,

@@ -1,17 +1,17 @@
 #!/usr/bin/python3
-"""The Eikosi module provides classes and data for managing searchable collections
-of bibliographic entries.  The idea behind Eikosi is that contemporary 
-scientific communication is performed through papers transmitted as pdfs, or 
-data downloaded through repositories; it would be nice if one could enter 
-bibliographic data, notes, categorize, and cross-link references from a single
-text file.
+"""The Eikosi module provides classes and data for managing searchable 
+collections of bibliographic entries.  The idea behind Eikosi is that 
+contemporary scientific communication is performed through papers 
+transmitted as pdfs, or data downloaded through repositories; it would 
+be nice if one could enter bibliographic data, notes, categorize, and 
+cross-link references from a single text file.
 
-While there are many ways that users can implement Eikosi, the intended use is
-for an .eks file to be created alongside each downloaded pdf or in each 
-repository being tracked.  An .eks file is just a snipet of Python code that 
-records all of the relevant bibliographic data, notes, and that organizes 
-bibliographic entries into collections so they can be conveniently called up 
-later.
+While there are many ways that users can implement Eikosi, the intended 
+use is for an .eks file to be created alongside each downloaded pdf or 
+in each repository being tracked.  An .eks file is just a snipet of 
+Python code that records all of the relevant bibliographic data, notes, 
+and that organizes bibliographic entries into collections so they can be
+conveniently called up later.
 
 For example, these might be the contents of an .eks file:
     import eikosi as ek
@@ -25,25 +25,24 @@ For example, these might be the contents of an .eks file:
     entry.number = 1
     entry.year = 2020
 
-There is no need to assemble all of the bibliographic entries in one place.  
-Your library can grow or shrink or merge or... whatever, as long as you keep
-moving around your .eks files along with your pdfs.
+There is no need to assemble all of the bibliographic entries in one 
+file.  Your library can grow or shrink or merge or... whatever, as long 
+as you keep moving around your .eks files along with your pdfs.
 
-The modules supplies two functions that are used to load in data:
+The module supplies two functions that are used to load in data:
 load()          Read in a repository of Eikosi collections and entries
 loadbib()       Construct an Eikosi collection from a BibTeX file
 
-Both of these return a MasterCollection object, populated with the data they 
-read in from their respective sources.  The load() funciton is intended to be
-the primary method for loading data into scripts or the command ine.  The laod()
-function can read in entire directories or single files.  For detailed 
-information, see the load() documentation. 
+Both of these return a MasterCollection instance, populated with the 
+data they read in from their respective sources.  The load() funciton is 
+intended to be the primary method for loading data into scripts or the 
+command ine.  The laod() function can read in entire directories or 
+single files.  For detailed information, see the load() documentation. 
 
-The Collection classes are:
-ProtoCollection
-|-> MasterCollection
-|-> Collection
-\-> SubCollection
+*** ENTRIES ***
+
+The bibliographic data are contained in individual Entry instances.  
+Each type of bibliographic entry has its own class for dealing with it.
 
 The Entry classes are:
 Entry
@@ -53,23 +52,52 @@ Entry
 |-> BookEntry
 \-> WebsiteEntry
 
-Collections are groups of Entries and other Collections.  An Entry belongs to a
-Collection if it belongs to that Collection or any of its children.
-
 The parent Entry class defines default methods for saving and exporting 
-bibliographic data that are usually completely extensible to each of the child
-class instances.  All attributes that are written or read after initialization
-are found in the Entry's 'bib' dict.  For example
-    pb = eikosi.WebsiteEntry('martin:2020')
-    pb.url = 'https://github.com/chmarti1/eikosi'
-    print(pb.url)
-is equivalent to
-    pb.bib['url'] = 'https://github.com/chmarti1/eikosi'
-    print(pb.bib['url'])
+bibliographic data that are usually completely extensible to each of the
+child class instances.  
+
+Bibliographic entry "items" are available as attributes
+    myentry.title = 'An example journal title'
+    myentry.journal = 'Court of public opinion'
     
-However, note that the name attribute is NOT found in the bib dictionary, and 
-obviously, neither is bib itself!  Check the Entry documentation for more 
-information.
+See the Entry documentation for the details on how Entries deal with
+bibliographic item data.
+
+*** COLLECTIONS ***
+
+Entries are always grouped into Collections; even if you only have one 
+entry.  At the top of every Collection tree is a MasterCollection that
+keeps track of everything in its tree.
+
+The Collection classes are:
+ProtoCollection
+|-> MasterCollection
+|-> Collection
+\-> SubCollection
+
+Collections just contain lists of Entries and other Collections.  
+They're a useful way of organizing Entires.  For example, imagine you 
+have a Collection of Entries on the topic of Zebras.  You might want to
+make a special SubCollection of Entries that have information on what 
+Zebras eat.  However, some of those may also have information on Zebra
+sleeping habits, so a single entry could belong to its Collection and 
+many of its sub-collections.  
+
+If you create a Collection in an .eks file, it will automatically be 
+added to 
+
+Adding an Entry to a SubCollection automatically adds it to the 
+Collection that contains the SubCollection.  It is important to 
+emphasize, however, that data might only live with the SubCollection.
+Checking whether a Collection contains an Entry requires checking all
+of the SubCollections as well.
+
+MasterCollections are special; they don't have that problem.
+A MasterCollection sits at the top of its Collection tree, and maintains 
+its own complete record of every Entry and Collection under it. There is
+always only one MasterCollection in every Collection Tree.
+
+
 """
 
 
@@ -519,27 +547,29 @@ class Entry:
     """Parent Eikosi entry class
 pbe = Entry(name)
 
+All entries are initialized using unique string identifiers.
 
 ** Built-in attributes **
 
-Entries have five built-in attributes: name, sourcefile, docfile, collections,
-and bib.  Access to additional attributes is described below in the next 
-section.
+Entries have five built-in attributes: name, sourcefile, docfile, 
+collections, and bib.  Access to additional attributes is described 
+below in the next section.
 
 --> name
 A string identifying the entry in BibTeX.  This is the tag that appears 
-immediately after the opening of an entry in the BibTeX file.  Eikosi also uses
-the name as a unique identifier for the Entry.
+immediately after the opening of an entry in the BibTeX file.  Eikosi 
+also uses the name as a unique identifier for the Entry.
 
 --> sourcefile
-This is the file from which the entry was loaded.  When entries are created in
-scripts or the commandline, the sourcefile attribute is left None.
+This is the file from which the entry was loaded.  When entries are 
+created in scripts or the commandline, the sourcefile attribute is left 
+None.
 
 --> docfile
-The docfile attribute is an optional string specifying a means for retrieving 
-a copy of the document.  It could be a URL (e.g. 
-https://website.com/dir/filename.pdf), a path to the file on the local machine, 
-(e.g. /home/username/Documents/filename.pdf).
+The docfile attribute is an optional string specifying a means for 
+retrieving a copy of the document.  It could be a URL (e.g. 
+https://website.com/dir/filename.pdf), a path to the file on the local 
+machine, (e.g. /home/username/Documents/filename.pdf).
 
 --> collections
 The collections attribute is a list of collections to which the entry is 
@@ -549,7 +579,7 @@ collection.
 --> bib
 This is a dict that contains all of the items that will be used to construct the
 bibliographic record.  Every member of bib is accessible as an attribute of the
-Entry, and writing to an nonexistant attribute creates a new member of bib. (see
+Entry, and writing to a nonexistant attribute creates a new member of bib. (see
 below).
 
 
@@ -677,21 +707,28 @@ It must be of the form
         return self.name == other.name
         
     def __getattr__(self, item):
+        # Test for existence of the key in dict first, then bib
+        # The hard attributes always take precedence over the bib entries
         if item in self.__dict__:
             return self.__dict__[item]
-        output = self.__dict__['bib'].get(item)
-        if output:
-            return output
+        elif item in self.__dict__['bib']
+            return self.__dict__['bib'][item]
         raise AttributeError(item)
         
     def __setattr__(self, item, value):
+        # Test for existence of the key in dict first, then bib
+        # The hard attributes always take precedence over the bib entries
+        # Deny is a list of attributes that are off-limits for writing.
+        deny = ['bib']
         if item in self.__dict__:
+            if item in deny:
+                raise Exception(f'Entry: Permission denied to write to attribute {item}')
             self.__dict__[item] = value
         else:
             self.bib[item] = value
             
     def __contains__(self, item):
-        return item in self.__dict__ or item in self.bib
+        return item in self.__dict__ or item in self.__dict__['bib']
 
     def _convert(self, item, dtype, fatal):
         """Convert an item to an integer and raise a meaningful error if it fails

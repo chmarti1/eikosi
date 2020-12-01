@@ -115,6 +115,10 @@ finer control over how iteration is done, see the CollectionIterator
 class.
 """
 
+# To do...
+# (1) How to save a collection tree; current algorithm sucks
+# (2) Write the find algorithm.
+
 
 import os, sys
 from math import log2, ceil
@@ -2070,6 +2074,41 @@ current MasterCollection.
         # Force membership to the same master, even if master is None
         cnew.master = self.master
         
+        
+    def removechild(self, target):
+        """Remove a Collection or SubCollection from this collection
+    c.removechild(collection_name)
+        OR
+    c.removechild(collection)
+    
+Accepts either the Collection's name as a string or the Collection itself.
+Unlike the removal of entries, this operation is never recursive.
+"""
+        # If the target is a name
+        if isinstance(target,str):
+            cname = target
+            target = None
+        # If the target is a Collection
+        elif isinstance(target, ProtoCollection):
+            cname = target.name
+        
+        # Does this target exist in the collection?
+        if cname in self.children:
+            # Test for a contradiction in the specified target
+            if target is None:
+                target = self.children[cname]
+            elif target is not self.children[cname]:
+                raise Exception(f'ProtoCollection.remove: Contradicting records for Collection {cname}. Aborting.')
+            # OK, time to remove. 
+            del self.children[cname]
+            # If I was this collection's Master and it no longer appears
+            # in the Collection tree, then it no longer has a master
+            if target.master is self and self.getchild(cname) is None:
+                target.master = None
+        else:
+            raise Exception(f'ProtoCollection.remove: No child found {cname}')
+            
+            
     def haschild(self, ctest):
         """Test whether a collection or collection name is a child of the collection.
     TF = this_collection.haschild(test_collection)
@@ -2127,25 +2166,83 @@ done unless the entries are different.
         if self.master is None:
             # Test for a name collision
             test = self.entries.get(newentry.name)
-            # If the name does not exist, go ahead and add it
-            if test is None:
-                self.entries[newentry.name] = newentry
-            elif test is not newentry:
+            if test is not None and test is not newentry:
                 raise Exception(f'ProtoCollection.add: Entry contradicts an existing entry for: {newentry.name}')
         # If this Collection is part of a MasterCollection, the new entry
         # needs to be checked against the MasterCollection entries
         else:
-            # Test for collision against the MasterCollection
-            test = self.master.get(newentry.name)
-            # If the name does not exist, go ahead and add it
-            # Note that we're trusting that the local entries dict is
-            # in accordance with the MasterCollection's record
-            if test is None or test is newentry:
-                self.entries[newentry.name] = newentry
-            else:
-                raise Exception(f'ProtoCollection.add: Entry contradicts an existing entry for: {newentry.name}')
+            # Adding the entry to master will fail if it conflicts
+            # with an previous entry
+            self.master.add(newentry)
+        
+        # Add the new entry to this collection
+        self.entries[newentry.name] = newentry
+        # Finally, adding a new entry invalidates previous sort operaitons
+        self._sorted = {}
+        
+        
+    def remove(self, target, recurse=True):
+        """Remove an entry from the colleciton
+    c.remove(entryname)
+        OR
+    c.remove(entry)
+    
+Removing an Entry from a Collection implies removing it from all child
+collections as well.  Setting the optional "recurse" keyword to False 
+overrides this behavior and only removes the Entry from this Collection
+without recursing into its child collecitons.
 
-            
+When operating recursively, Collection tree integrity checks are run as
+the search progresses.  Each instance matching the entry name is check to
+be certain it is pointing to the same entry and the entry's collections
+list is check for the matching collections.  Problems produce descriptive
+warnings but not exceptions since removal corrects the errors.
+"""
+        # Isolate the entry name.  If target is a string, we already have it
+        if isinstance(target, str):
+            entryname = target
+            target = None
+        # If it isn't a name, it had better be an entry
+        elif isinstance(target, Entry):
+            entryname = target.name
+        else:
+            raise Exception(f'ProtoCollection.remove: Expected an entry or entry name, but got {repr(target)}')
+
+
+        # At this stage, entryname MUST be a string
+        # If target is not None, it is the entry being removed
+        # If running recursively,
+        if recurse:
+            # Keep track of whether the entry was ever found
+            nfound = True
+            # Loop through all child Collections
+            for c in self.collections():
+                # Does this collection recognize the entry name?
+                if entryname in c.entries:
+                    nfound = False
+                    # If this is the first time we found a matching entry
+                    if target is None:
+                        target = c.entries[entryname]
+                    elif target is not c.entries[entryname]:
+                        sys.stderr.write(f'ProtoCollection.remove: Found conflicting entries for {entryname}. Collection tree may be corrupt; removing.\n')
+                    # Finally, remove the entry from the collection
+                    del c.entries[entryname]
+            if nfound:
+                raise Exception(f'ProtoCollection.remove: Entry {entryname} was not found.')
+        else:
+            # If not operating recursively, then the remove operation only applies
+            # to this collection.
+            if entryname in self.entries:
+                # If the target entry was not supplied, get it
+                if target is not None and target is not self.entries[entryname]:
+                    raise Exception(f'ProtoCollection.remove: Entry {entryname} contradicts the entry.  Aborting.')
+                # Finally, remove the entry from the collection
+                del self.entries[entryname]    
+            else:
+                raise Exception(f'ProtoCollection.remove: Entry {entryname} was not found.  Try running recursively?')
+
+
+
     def get(self, entryname):
         """Retrieve an entry by its name
     entry = c.get(entryname)
@@ -2231,21 +2328,9 @@ The number of entries before the list will be broken into columns
         
     def find(self, **kwarg):
         """Returns a collection of entries that match the search criteria
-    c2 = c.find(..., item=regex, ...)
-        OR
-    c2 = c.find(..., item=number, ...)
-        OR
-    c2 = c.find(..., item=(min, max), ...)
+    THIS IS THE HARD ONE
 
-Each keyword-value pair is a bibliographic item and a value of some kind against
-which the entries will be compared.  All entries returned in collection, c2, 
-must have the named items, and they must "match" the criteria named in the 
-values.
-
-If the value is a string, it is interpreted as a regular expression, and 
-entries' values for "item" must match that expression (see the re Python module
-for more information).  When the 
-
+To be written later.
 """
         pass
         
@@ -2424,12 +2509,15 @@ conflicts with a prior entry, an Exception is raised.
             raise Exception('MasterCollection.add: Cannot add a non-Entry: ' + repr(type(newentry)))
         # Check for a collision.  If it's safe, go ahead and add the entry
         test = self.get(newentry.name)
-        # If this is a new entry
-        if test is None:
-            # Add it
-            self.entries[newentry.name] = newentry
-        elif test is not newentry:
+        if test is not None and test is not newentry:
             raise Exception('MasterCollection.add: The new entry collides with an existing entry for: ' + newentry.name)
+            
+        # Add the new entry to this collection
+        self.entries[newentry.name] = newentry
+        # Add this collection to the entry's list of collections
+        newentry.collections.append(self)
+        # Adding a new species invalidates previous sort operations
+        self._sorted = {}
         
     def get(self, entryname):
         """Get an entry from the MasterCollection
@@ -2529,17 +2617,23 @@ cause the process to halt with an exception.
                         originfile = self.entries[value.name].sourcefile
                         if originfile:
                             sys.stdout.write(f'MasterCollection.load: Originally defined in file: {originfile}\n')
-                        if value.sourcefile:
-                            sys.stdout.write(f'MasterCollection.load: Redundant entry found in file: {value.sourcefile}\n')
+                        sys.stdout.write(f'MasterCollection.load: Redundant entry found in file: {sourcefile}\n')
                         sys.stdout.write(f'MasterCollection.load: Ignoring the redundant entry!\n')
                     # OK.  Everything seems good.
                     else:
                         # If we're operating verbosely, tell the user what we found
                         if verbose:
                             sys.stdout.write('    --> Found entry: ' + value.name + '\n')
+                        # Record the file where the Entry was defined
                         value.sourcefile = sourcefile
+                        # Run post-processing
                         value.post(fatal=(not relax))
+                        # Add the entry
                         self.entries[value.name] = value
+                        # Add this master to the Entry's list of collections
+                        value.collections.append(self)
+                        # Identify this as the Entry's sole MasterCollection
+                        value.master = self
                 # Or, look for a Collection
                 elif isinstance(value, Collection):
                     nfound = False
@@ -2598,7 +2692,6 @@ cause the process to halt with an exception.
                             # with a pointer to the actual collection instance.
                             if c is not None:
                                 c.add(entry)
-                                entry.collections[ii] = c
                             # If it doesn't exist, warn the user!
                             else:
                                 sys.stderr.write(f'MasterCollection.load: Error linking entry to its collection: {entry.name}\n' + \
@@ -2671,23 +2764,16 @@ if they point to identical istances.  Otherwise, an exception is raised.
             # Does this collide with a previous collection name?
             elif cnew.name in self.children:
                 raise Exception(f'MasterCollection.addchild: There is already a collection with the name: {cnew.name}')
-            # Read in the new entries to the MasterCollection
+            # Look for any new entries in the new collection
             for newentry in cnew:
                 # Does the entry already belong to this MasterCollection?
-                if self in newentry.collections:
-                    # Get the existing entry
-                    oldentry = self.get(newentry.name)
-                    # This is odd.  The Entry CLAIMED it was a mamber of this MasterCollection.
-                    # We should warn the user about this.  Something is very wrong.
-                    if oldentry is None:
-                        sys.stderr.write(f'MasterCollection.addchild: The new Collection includes Entry, {newentry.name}, claims to belong to this MasterCollection.')
-                        sys.stderr.write(f'MasterCollection.addchild: However, no record is found of an entry with that name.')
-                    elif newentry is not oldentry:
-                        raise Exception(f'MasterCollection.addchild: There are contradictory entries for: {newentry.name}')
+                oldentry = self.entries.get(newentry.name)
+                # If so, make sure it's the same entry
+                if oldentry is not None and oldentry is not newentry:
+                    raise Exception(f'MasterCollection.addchild: There are contradictory entries for: {newentry.name}')
                 # If the entry does not exist, add it.
                 else:
                     self.entries[newentry.name] = newentry
-                    self.collections.append(self)
         else:
             raise Exception('MasterCollection.addchild: Only Collections can be added as a child of a MasterCollection')
         

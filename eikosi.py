@@ -1815,38 +1815,46 @@ included in the iteration.
     def __init__(self, target, depthfirst = False, inclusive=True):
         self.target = target
         self.schedule = []
+        # As a test for tree integrity, keep track of each unique collection
+        # Each time the _iflag of a new collection is set, increment count.
+        count = 0
         if depthfirst:
-            self._depth_first(target)
+            count = self._depth_first(target, count)
             if not inclusive:
                 del self.schedule[-1]
         else:
+            # Deal with target first.
             target._iflag = True
+            count += 1
             if inclusive:
                 self.schedule.append(target)
-            self._depth_last(target)
-        count = target._set_iflag(False)
-        if count != len(self.schedule):
+            count = self._depth_last(target, count)
+        if count != target._set_iflag(False):
             raise Exception('CollectionIterator: There was an irregularity in the _iflag state of the collections.\n')
             
     def __iter__(self):
         return self
         
-    def _depth_last(self, target):
+    def _depth_last(self, target, count):
         """Accumulate children in a depth-last ordered list"""
         for child in target.children.values():
             if not child._iflag:
                 child._iflag = True
+                count += 1
                 self.schedule.append(child)
         for child in target.children.values():
-            self._depth_last(child)
+            count = self._depth_last(child, count)
+        return count
                 
-    def _depth_first(self, target):
+    def _depth_first(self, target, count):
         """Accumulate children in a depth-first ordered list"""
         if not target._iflag:
             target._iflag = True
+            count += 1
             for child in target.children.values():
                 self._depth_first(child)
             self.schedule.append(target)
+        return count
         
     def __next__(self):
         if self.schedule:
@@ -1919,10 +1927,10 @@ objects, and loops in the tree are permitted.
         self.children = {}
 
         if isinstance(name, ProtoCollection):
-            self.name = name.name
+            self.name = str(name.name)
             self.doc = str(name.doc)
             self.entries.update(name.entries)
-            self.children.update(name.children)
+            self.children.update(name.children)            
         elif isinstance(name,str):
             self.name = name
         else:
@@ -1973,6 +1981,84 @@ collections will also be removed.
         if remove:
             self.children = {}
             
+    def merge(self, mc, name):
+        """Merge collections from other MasterCollections
+    c.merge(mc, name)
+    
+merge() imports a separate MasterCollection as a SubCollection of this 
+Collection.  When called from a MasterCollection, mc will be added as a
+Collection instead of a SubCollection.  The new Collection will be given 
+the name provided.
+"""
+        # Verify that the new collection is a MasterCollection
+        if not isinstance(mc, MasterCollection):
+            raise Exception('ProtoCollection.merge: Only MasterCollections can be merged.')
+        # What is the Master?
+        master = self.master
+        # Make sure this isn't a snake eating its own tail.
+        if master is mc:
+            raise Exception('ProtoCollection.merge: Cannot merge a MasterCollection into one of its own subordinates.')
+        
+        # Before we do anything, we need to check for collisions.
+        # Is the name already taken?
+        if master.getchild(name) is not None:
+            raise Exception(f'ProtoCollection.merge: There is already a Collection with the name: {name}')
+            
+        # Build sets of all collections and look for any intersection
+        old = set([this.name for this in master.collections(rself=False)])
+        new = set([this.name for this in mc.collections(rself=False)])
+        redundant = old.intersection(new)
+        if redundant:
+            sys.stderr.write('ProtoCollection.merge: Found conflicting collection names:\n    ')
+            for this in redundant:
+                sys.stderr.write(f'    {this}\n')
+            raise Exception('ProtoCollection.merge: Found conflicting collection names. Aborting.')
+        
+        # Test every new entry for a collision.  Redundant names are allowed
+        # if they point to identical entries.
+        for new in mc:
+            old = master.entries.get(new.name)
+            if old is not None and old is not new:
+                raise Exception(f'ProtoCollection.merge: Found conflicting entries for: {new.name}')
+        
+        # OK, the merge is safe.  Time to proceed.
+        # Read in all the new entries
+        master.entries.update(mc.entries)
+        
+        # Define a new collection to add to self.
+        if isinstance(self, MasterCollection):
+            nc = Collection(mc)
+        else:
+            nc = SubCollection(mc)
+        # You're one of us now
+        nc.master = master
+        # With a new name
+        nc.name = str(name)
+        
+        # Force the entire Collection tree to SubCollections and make them
+        # members of this MasterCollection
+        # This requires a custom recursive iteration algorithm
+        def _demote(target, count):
+            if not target._iflag:
+                # Record that we've worked on this collection already
+                target._iflag = True
+                count += 1
+                # Loop through the children of this collection
+                for n,c in target.children.items():
+                    # If this child has not yet been demoted
+                    if not isinstance(c, SubCollection):
+                        # Demote it and replace it in the dictionary
+                        c = SubCollection(c)
+                        target.children[n] = c
+                    count = _demote(c, count)
+            return count
+            
+        if _demote(nc,0) != nc._set_iflag(False):
+            sys.stderr.write('ProtoCollection.merge: WARNING. There appears to be a corruption in the Collection tree.\n')
+            sys.stderr.write('ProtoCollection.merge: There was a child count missmatch while demoting to SubCollections.\n')
+            
+        # Finally, add the collection
+        self.children[name] = nc
         
     def copy(self):
         """Return a copy of the collection
@@ -2058,7 +2144,7 @@ belong to a MasterCollection.  This operation will join them to the
 current MasterCollection.
 """
         # Check for correct Collection type
-        if not isinstance(cnew, (ek.Collection,ek.SubCollection)):
+        if not isinstance(cnew, (Collection,SubCollection)):
             raise TypeError('ProtoCollection.addcollection: All child collections must be Collection or SubCollection instances.\n') 
         # Check for agreement between the masters
         elif cnew.master is not None:
@@ -2699,54 +2785,6 @@ cause the process to halt with an exception.
                                 if entry.sourcefile:
                                     sys.stderr.write(f'MasterCollectionload: Entry defined in file: {entry.sourcefile}\n')
 
-    def merge(self, target, overwrite=False, relax=False):
-        """MERGE
-    c1.merge(c2)
-        OR
-    c1.merge('/path/to/dir')
-    
-The merge method adds the contents of another MasterCollection object into this
-MasterCollection.  If the first argument is a string, it is treated as a path
-to a directory to load into a new MasterCollection, which will then be loaded.
-
-Merging is similar to using the update() or addchild() methods, except that 
-merging is unique to MasterCollections, and it includes the detection of 
-redundant entries and collections.  
-
-See also update(), addchild()
-"""
-        # Make a recursive call if the argument is a string
-        if isinstance(target,str):
-            b = MasterCollection()
-            b.load(target, relax=relax)
-            return self.merge(b)
-        elif not isinstance(target, MasterCollection):
-            raise Exception('MasterCollection.merge: target is not a MasterCollection!')
-
-        conflict = 0
-        # First, check for redundant entries by name
-        redundant = set(self.entries.keys()).intersection(set(target.entries.keys()))
-        for entry in redundant:
-            if not self.entries[entry] is target.entries[entry]:
-                conflict += 1
-                sys.stderr.write(f'MasterCollection.merge: Conflicting definitions for entry: {entry}\n')
-
-        # Now check for redundant collections
-        redundant = set(self.children.keys()).intersection(set(target.children.keys()))
-        for collection in redundant:
-            if not self.children[collection] is target.children[collection]:
-                conflict += 1
-                sys.stderr.write(f'MasterCollection.merge: Conflicting definitions for collection: {collection}\n')
-           
-        if conflict:
-            if overwrite:
-                sys.stderr.write(f'MasterCollection.merge: Overwriting {conflict} conflicts.\n')
-            else:
-                sys.stderr.write(f'MasterCollection.merge: Identified {conflict} conflicts.\n')
-                sys.stderr.write(f'MasterCollection.merge: Set overwrite=True to suppress this exception.\n')
-                raise Exception(f'MasterCollection.merge: Redundant entries')
-                    
-        self.update(target)
         
     def addchild(self, cnew):
         """Add a collection to the MasterCollection

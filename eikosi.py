@@ -1925,6 +1925,7 @@ objects, and loops in the tree are permitted.
         self.name = ''
         self.entries = {}
         self.children = {}
+        self._sorted = {}
 
         if isinstance(name, ProtoCollection):
             self.name = str(name.name)
@@ -1986,9 +1987,14 @@ collections will also be removed.
     c.merge(mc, name)
     
 merge() imports a separate MasterCollection as a SubCollection of this 
-Collection.  When called from a MasterCollection, mc will be added as a
-Collection instead of a SubCollection.  The new Collection will be given 
-the name provided.
+Collection.  First, merge() tests the collections and entries of the
+two collection trees for compatibility.  If the tests succeed, the 
+MasterCollection object, mc, will be emptied of all its entries and 
+collections and they will be imported into this Collection.  
+
+When called from a MasterCollection, mc will be added as a Collection 
+instead of a SubCollection.  The new Collection will be given the name 
+provided.
 """
         # Verify that the new collection is a MasterCollection
         if not isinstance(mc, MasterCollection):
@@ -2001,7 +2007,7 @@ the name provided.
         
         # Before we do anything, we need to check for collisions.
         # Is the name already taken?
-        if master.getchild(name) is not None:
+        if master.haschild(name) or mc.haschild(name):
             raise Exception(f'ProtoCollection.merge: There is already a Collection with the name: {name}')
             
         # Build sets of all collections and look for any intersection
@@ -2030,8 +2036,6 @@ the name provided.
             nc = Collection(mc)
         else:
             nc = SubCollection(mc)
-        # You're one of us now
-        nc.master = master
         # With a new name
         nc.name = str(name)
         
@@ -2040,6 +2044,8 @@ the name provided.
         # This requires a custom recursive iteration algorithm
         def _demote(target, count):
             if not target._iflag:
+                # Set the new master
+                target.master = master
                 # Record that we've worked on this collection already
                 target._iflag = True
                 count += 1
@@ -2057,8 +2063,15 @@ the name provided.
             sys.stderr.write('ProtoCollection.merge: WARNING. There appears to be a corruption in the Collection tree.\n')
             sys.stderr.write('ProtoCollection.merge: There was a child count missmatch while demoting to SubCollections.\n')
             
-        # Finally, add the collection
+        # Add the collection
         self.children[name] = nc
+        # And reset the sorted dictionaries
+        self._sorted = {}
+        
+        # Empty the original master collection
+        mc.entries = {}
+        mc.children = {}
+        mc._sorted = {}
         
     def copy(self):
         """Return a copy of the collection
@@ -2159,6 +2172,8 @@ current MasterCollection.
         self.children[cnew.name] = cnew
         # Force membership to the same master, even if master is None
         cnew.master = self.master
+        # I need to clear the _sorted dict
+        self._sorted = {}
         
         
     def removechild(self, target):
@@ -2177,6 +2192,8 @@ Unlike the removal of entries, this operation is never recursive.
         # If the target is a Collection
         elif isinstance(target, ProtoCollection):
             cname = target.name
+        else:
+            raise TypeError(f'ProtoCollection.removechild: Expected a collection name or a collection instance. Received: {repr(target)}')
         
         # Does this target exist in the collection?
         if cname in self.children:
@@ -2191,6 +2208,10 @@ Unlike the removal of entries, this operation is never recursive.
             # in the Collection tree, then it no longer has a master
             if target.master is self and self.getchild(cname) is None:
                 target.master = None
+            # Unless I am a master collection, the _sorted dict needs to be
+            # reset.
+            if not isinstance(self, MasterCollection):
+                self._sorted = {}
         else:
             raise Exception(f'ProtoCollection.remove: No child found {cname}')
             
@@ -2267,22 +2288,28 @@ done unless the entries are different.
         self._sorted = {}
         
         
-    def remove(self, target, recurse=True):
+    def remove(self, target, recurse=True, fatal=True):
         """Remove an entry from the colleciton
-    c.remove(entryname)
+    n = c.remove(entryname)
         OR
-    c.remove(entry)
-    
+    n = c.remove(entry)
+
+Removes an entry from a collection tree.  Returns the number of instances
+of that entry that were removed from the collection and its children.
 Removing an Entry from a Collection implies removing it from all child
 collections as well.  Setting the optional "recurse" keyword to False 
 overrides this behavior and only removes the Entry from this Collection
-without recursing into its child collecitons.
+without recursing into its child collecitons.  Returns the number of 
+instances of the entry name that were removed from collections.
 
 When operating recursively, Collection tree integrity checks are run as
 the search progresses.  Each instance matching the entry name is check to
 be certain it is pointing to the same entry and the entry's collections
 list is check for the matching collections.  Problems produce descriptive
 warnings but not exceptions since removal corrects the errors.
+
+The "fatal" keyword defaults to True, and causes an error when no entries
+were found matching the target.
 """
         # Isolate the entry name.  If target is a string, we already have it
         if isinstance(target, str):
@@ -2300,21 +2327,13 @@ warnings but not exceptions since removal corrects the errors.
         # If running recursively,
         if recurse:
             # Keep track of whether the entry was ever found
-            nfound = True
+            nfound = self.remove(target, recurse=False, fatal=False)
             # Loop through all child Collections
             for c in self.collections():
-                # Does this collection recognize the entry name?
-                if entryname in c.entries:
-                    nfound = False
-                    # If this is the first time we found a matching entry
-                    if target is None:
-                        target = c.entries[entryname]
-                    elif target is not c.entries[entryname]:
-                        sys.stderr.write(f'ProtoCollection.remove: Found conflicting entries for {entryname}. Collection tree may be corrupt; removing.\n')
-                    # Finally, remove the entry from the collection
-                    del c.entries[entryname]
-            if nfound:
-                raise Exception(f'ProtoCollection.remove: Entry {entryname} was not found.')
+                nfound += c.remove(target, recurse=False, fatal=False)
+            # Raise an exception?
+            if not fatal or nfound:
+                return nfound
         else:
             # If not operating recursively, then the remove operation only applies
             # to this collection.
@@ -2323,9 +2342,13 @@ warnings but not exceptions since removal corrects the errors.
                 if target is not None and target is not self.entries[entryname]:
                     raise Exception(f'ProtoCollection.remove: Entry {entryname} contradicts the entry.  Aborting.')
                 # Finally, remove the entry from the collection
-                del self.entries[entryname]    
-            else:
-                raise Exception(f'ProtoCollection.remove: Entry {entryname} was not found.  Try running recursively?')
+                del self.entries[entryname]
+                # Reset the sorted dict
+                self._sorted = {}
+                return 1
+            elif not fatal:
+                return 0
+        raise Exception(f'ProtoCollection.remove: Entry {entryname} was not found.')
 
 
 
@@ -2411,6 +2434,39 @@ The number of entries before the list will be broken into columns
         else:
             for thisentry in schedule:
                 sys.stdout.write(thisentry.name + '\n')
+        
+        
+    def listchildren(self, _indlvl=''):
+        """Prints a formatted representation of the collection tree
+    c.listchildren()
+    
+If the same child is found multiple times in the list, its contents will
+not be shown redundantly.  This prevent infinite cyclical loops.
+"""
+        # Always start by printing the name of this child
+        sys.stdout.write(self.name + '\n')
+        # If this collection hasn't already been explored
+        if not self._iflag:
+            # Mark it
+            self._iflag = True
+            # and explore it
+            # Detect the number of children so we can identify the last one
+            # Modify the indentation level
+            nn = len(self.children)-1
+            for ii, c in enumerate(self.children.values()):
+                # We are responsible for constructing the tree lines
+                sys.stdout.write(_indlvl)
+                if ii<nn:
+                    sys.stdout.write('|-> ')
+                    c.listchildren(_indlvl + '|   ')
+                else:
+                    sys.stdout.write("'-> ")
+                    c.listchildren(_indlvl + '    ')
+        else:
+            sys.stdout.write(_indlvl + "'-> ...\n")
+        # If this is the root of the recursion tree
+        if len(_indlvl) == 0:
+            self._set_iflag(False)
         
     def find(self, **kwarg):
         """Returns a collection of entries that match the search criteria
@@ -2718,8 +2774,6 @@ cause the process to halt with an exception.
                         self.entries[value.name] = value
                         # Add this master to the Entry's list of collections
                         value.collections.append(self)
-                        # Identify this as the Entry's sole MasterCollection
-                        value.master = self
                 # Or, look for a Collection
                 elif isinstance(value, Collection):
                     nfound = False
@@ -2743,8 +2797,12 @@ cause the process to halt with an exception.
                         # If we're operating verbosely, tell the user what we found.
                         if verbose:
                             sys.stdout.write('    --> Found collection: ' + value.name + '\n')
-                        value.sourcefile = sourcefile
-                        value.master = self
+                        # Recurse into sub-collections to mark the sourcefile
+                        # and the master collection
+                        for c in value.collections():
+                            c.sourcefile = sourcefile
+                            c.master = self
+                        # Recurse into sub-collections
                         self.children[value.name] = value
             # Warn the user if there were no objects found.
             if nfound:
@@ -2797,10 +2855,12 @@ if they point to identical istances.  Otherwise, an exception is raised.
 """
         if isinstance(cnew, Collection):
             # Is this Collection already associated with another MasterCollection
-            if cnew.master is not None and cnew.master is not self:
+            if cnew.master is None:
+                cnew.master = self
+            elif cnew.master is not self:
                 raise Exception(f'MasterCollection.addchild: Collection {cnew.name} is already associated with another MasterCollection.')
             # Does this collide with a previous collection name?
-            elif cnew.name in self.children:
+            if cnew.name in self.children:
                 raise Exception(f'MasterCollection.addchild: There is already a collection with the name: {cnew.name}')
             # Look for any new entries in the new collection
             for newentry in cnew:
@@ -2812,6 +2872,7 @@ if they point to identical istances.  Otherwise, an exception is raised.
                 # If the entry does not exist, add it.
                 else:
                     self.entries[newentry.name] = newentry
+            self.children[cnew.name] = cnew
         else:
             raise Exception('MasterCollection.addchild: Only Collections can be added as a child of a MasterCollection')
         

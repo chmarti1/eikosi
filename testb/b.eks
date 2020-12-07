@@ -1,0 +1,13 @@
+import eikosi as ek
+
+b = ek.ArticleEntry('b')
+b.author = 'B. Barbara and B. Bell'
+b.title = 'Blue Bicycles Bound by Blarney'
+b.journal = 'B'
+b.year = 2020
+b.number = 2
+b.volume = 2
+b.pages = '2-22'
+b.collections = ['cbb']
+b.doc = """This is the docstring for 'B'
+"""

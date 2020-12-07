@@ -1,0 +1,11 @@
+import eikosi as ek
+
+cb = ek.Collection('cb')
+cbb = ek.SubCollection('cbb')
+
+cb.addchild(cbb)
+
+cc = ek.Collection('cc')
+ccc = ek.SubCollection('ccc')
+cc.addchild(ccc)
+ccc.addchild(cb)

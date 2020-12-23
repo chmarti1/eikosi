@@ -1,0 +1,11 @@
+import eikosi as ek
+
+entry = ek.ArticleEntry('a:2020')
+entry.author = 'Art Article Author'
+entry.title = 'An example nonsense article'
+entry.journal = 'Sense and nonsense'
+entry.year = 2020
+entry.volume = 12
+entry.number = 4
+entry.pages = '115-128'
+entry.collections = ['s0']

@@ -1,0 +1,14 @@
+import eikosi
+
+entry = eikosi.ArticleEntry('b')
+entry.author = eikosi.AuthorList([['B.', 'Barbara'], ['B.', 'Bell']])
+entry.title = 'Blue Bicycles Bound by Blarney'
+entry.journal = 'B'
+entry.year = 2020
+entry.number = 2
+entry.volume = 2
+entry.pages = '2-22'
+entry.collections = ['b', 'cbb']
+entry.doc = """This is the docstring for 'B'
+"""
+

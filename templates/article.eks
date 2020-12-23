@@ -1,0 +1,37 @@
+import eikosi as ek
+
+# Declare your entry by its type and a unique identifier string
+entry = ek.ArticleEntry('unique:name')
+
+# Author lists can be defined in one of four ways:
+# 1) a bibtex style and-separated string
+# 2) a list of names
+# 3) a nested list of names and name parts
+# 4) an AuthorList object.  AuthorLists can be initialized with the prior three methods as well
+#entry.author = 'Firstname Lastname and Firstname Lastname'
+#entry.author = ['Firstname Lastname', 'Firstname Lastname']
+#entry.author = [['Firstname','Lastname'], ['Firstname','Lastname']]
+entry.author = ek.AuthorList([['Firstname','Lastname'], ['Firstname','Lastname']])
+
+# The title and journal name are mandatory, but they're just strings
+entry.title = 'The title is just a string'
+entry.journal = 'The journal is just a string'
+
+# Volume and number are optional, but one of them must be specified.
+entry.volume = 12
+entry.number = 1
+
+# Year is mandatory
+entry.year = 2012
+
+# doi is optional
+entry.doi = 'doi/string:...'
+# notes can also be useful
+entry.notes = '[IN PRESS]'
+
+# enter the colleciton names into which this entry should be loaded
+# This is optional
+entry.collecitons = ['colleciton1', 'colleciton2']
+
+# finally, enter some of your own notes; this is optional
+entry.doc = 'This was a terrible article!'

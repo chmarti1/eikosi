@@ -1,0 +1,10 @@
+import eikosi as ek
+
+entry = ek.ConferenceEntry('b:2020')
+entry.author = 'Connie Conference Constructor'
+entry.title = 'An example nonsense conference paper'
+entry.booktitle = 'Conjured Conference'
+entry.year = 2020
+entry.address = 'Carlsbad, CA'
+
+entry.collections = ['s1']

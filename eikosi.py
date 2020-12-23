@@ -55,7 +55,7 @@ Entry
 |-> PatentEntry     (for patents and patent applicaitons)
 |-> PhdEntry        (for phd dissertations)
 |-> ReportEntry     (for industrial technical reports or whitepapers)
-\-> WebsiteEntry    (for citable websites)
+'-> WebsiteEntry    (for citable websites)
 
 The parent Entry class defines default methods for saving and exporting 
 bibliographic data that are usually completely extensible to each of the
@@ -78,7 +78,7 @@ The Collection classes are:
 ProtoCollection
 |-> MasterCollection
 |-> Collection
-\-> SubCollection
+'-> SubCollection
 
 Collections are containers for Entries and other Collections.  Only a 
 top-level MasterCollection is required for eikosi to work correctly, but
@@ -106,8 +106,9 @@ Collections.  Otherwise, they are identical; they can belong to one
 another, and their methods are identical.
 
 See important methods for working with Collections:
-    add, get, has                   Working with Entries
-    addchild, getchild, haschild    Working with child Collections
+    add, get, has, list             Working with Entries
+    addchild, getchild, haschild,   Working with child Collections
+        listchildren
     collections                     Iterating over children
 
 All collection instances support iteration over their member entries. For
@@ -888,7 +889,7 @@ data should define their own write() method.
 """
         if isinstance(target,str):
             with open(target,'w') as ff:
-                self.write(target=target, addimport=addimport, varname=varname, module=module)
+                return self.write(target=ff, addimport=addimport, varname=varname, module=module)
 
         # Detect the class and module names
         thisclass = self.__class__.__name__
@@ -1161,8 +1162,8 @@ class ConferenceEntry(Entry):
 e = ConferenceEntry(name)
 """
     tag = '@INPROCEEDINGS'
-    mandatory = {'author', 'title', 'booktitle', 'year'}
-    optional = {'series', 'pages', 'publisher', 'address', 'month', 'day'}
+    mandatory = {'author', 'title', 'booktitle', 'address', 'year'}
+    optional = {'series', 'pages', 'publisher', 'month', 'day'}
 
     def post(self, fatal=False, verbose=False, strict=False):
         """Post processing on entry objects.
@@ -1933,6 +1934,10 @@ objects, and loops in the tree are permitted.
             self.entries.update(name.entries)
             self.children.update(name.children)            
         elif isinstance(name,str):
+            if name in ProtoCollection.__dict__ or name in MasterCollection.__dict__:
+                sys.stdout.write(f'ProtoCollection.__init__: Warning. The colleciton name, {name} collides with an attribute/method.\n')
+                sys.stdout.write(f'ProtoCollection.__init__: This collection will not be accessible by the object model.  It must be\n')
+                sys.stdout.write(f'ProtoCollection.__init__: accessed by the getchild() method.\n')
             self.name = name
         else:
             raise TypeError('Collection.__init__: The collection name must be a string.\n')
@@ -1941,6 +1946,13 @@ objects, and loops in the tree are permitted.
         for c in CollectionIterator(self, depthfirst=False):
             for entry in c.entries.values():
                 yield entry
+                
+    def __getattr__(self, item):
+        if item in self.__dict__:
+            return self.__dict__[item]
+        elif item in self.__dict__['children']:
+            return self.__dict__['children'][item]
+        raise AttributeError(item)
         
     def _set_iflag(self, value):
         """Set the value of _iflag for this and all child Collections
@@ -2040,8 +2052,10 @@ provided.
         nc.name = str(name)
         
         # Force the entire Collection tree to SubCollections and make them
-        # members of this MasterCollection
-        # This requires a custom recursive iteration algorithm
+        # members of this MasterCollection.  This requires a custom 
+        # recursive iteration algorithm.
+        # Keep track of every prior collection that has been demoted.
+        record = {}
         def _demote(target, count):
             if not target._iflag:
                 # Set the new master
@@ -2053,9 +2067,13 @@ provided.
                 for n,c in target.children.items():
                     # If this child has not yet been demoted
                     if not isinstance(c, SubCollection):
+                        cc = record.get(c.name)
+                        if cc is None:
+                            cc = SubCollection(c)
+                            record[c.name] = cc
                         # Demote it and replace it in the dictionary
-                        c = SubCollection(c)
-                        target.children[n] = c
+                        target.children[n] = cc
+                        c = cc
                     count = _demote(c, count)
             return count
             
@@ -2399,7 +2417,13 @@ The absolute maximum terminal width to occupy with the list
 height  (12)
 The number of entries before the list will be broken into columns
 """
-            
+        
+        sys.stdout.write('~\nListing entries in collection: ' + self.name + '\n')
+        # If the docstring is present, print it.
+        if self.doc:
+            sys.stdout.write(self.doc + '\n')
+        sys.stdout.write('~\n')
+        
         # We MUST keep it within width columns
         # We will TRY to keep it within height rows
         colwidth = 0 # We will detect the maximum name length in a moment
@@ -2453,7 +2477,9 @@ not be shown redundantly.  This prevent infinite cyclical loops.
             # Detect the number of children so we can identify the last one
             # Modify the indentation level
             nn = len(self.children)-1
-            for ii, c in enumerate(self.children.values()):
+            cv = list(self.children.values())
+            cv.sort(key=lambda x: x.name)
+            for ii, c in enumerate(cv):
                 # We are responsible for constructing the tree lines
                 sys.stdout.write(_indlvl)
                 if ii<nn:
@@ -2462,7 +2488,9 @@ not be shown redundantly.  This prevent infinite cyclical loops.
                 else:
                     sys.stdout.write("'-> ")
                     c.listchildren(_indlvl + '    ')
-        else:
+        # If this collection has already been displayed and it has children
+        # just display a placeholder for the redundant display
+        elif self.children:
             sys.stdout.write(_indlvl + "'-> ...\n")
         # If this is the root of the recursion tree
         if len(_indlvl) == 0:
@@ -2481,23 +2509,24 @@ To be written later.
         """Return a sorted list of entries from the collection
     sortedlist = c.sort(by='item')
 
-Returns a list of entries in ascending order by the bibliographic item name 
-passed to the "by" keyword.  Values in these entries must have a method for the 
-< operation.  Entries that do not have the item are appended to the end of the
-list, but they may be omitted by setting the omit keyword to True.
+Returns a list of entries in ascending order by the bibliographic item 
+name passed to the "by" keyword.  Values in these entries must have a 
+method for the < operation.  Entries that do not have the item are 
+appended to the end of the list, but they may be omitted by setting the 
+omit keyword to True.
 
-The list may be reversed into descending order by setting the ascending keyword
-to False.  
+The list may be reversed into descending order by setting the ascending 
+keyword to False.  
 
-The result of each call to the sort() method is stored in the collection so that
-redundant calls to sort() simply return the stored list.  The stored list is 
-always constructed in ascending=True, omit=False mode.  When sort() is called on
-the same item, but with different keyword flags, the saved list is copied and 
-modified appropriately.
+The result of each call to the sort() method is stored in the collection 
+so that redundant calls to sort() simply return the stored list.  The 
+stored list is always constructed in ascending=True, omit=False mode.  
+When sort() is called on the same item, but with different keyword flags, 
+the saved list is copied and modified appropriately.
 
-If a user application modifies the list returned by sort(by), the modifications
-will be persistent, but modifications to the list returned by 
-sort(by, omit=True) will not be persistent.  
+If a user application modifies the list returned by sort(by), the 
+modifications will be persistent, but modifications to the list returned 
+by sort(by, omit=True) will not be persistent.  
 
 """
 
@@ -2550,6 +2579,8 @@ sort(by, omit=True) will not be persistent.
         if addimport:
             target.write(f'import {thismodule}\n\n')
         target.write(f'{varname} = {thismodule}.{thisclass}(\'{self.name}\')\n')
+        if self.doc:
+            target.write(f'{varname}.doc = {repr(self.doc)}\n')
 
     def savebib(self, target):
         """Export the members of this collection to a BibTeX file
@@ -2685,7 +2716,7 @@ found, the instances must also be identical.
             return self.get(entryname.name) is entryname
         raise TypeError('MasterCollection.has: The argument must be a string or an Entry type.\n')
 
-    def load(self, target, verbose=False, recurse=False, relax=False, _top=True):
+    def load(self, target, verbose=False, recurse=False, relax=False, create=True, _top=True):
         """Load Entries and Collections into the MasterCollection
     mc.load('/path/to/file.eks')
         OR
@@ -2721,14 +2752,14 @@ cause the process to halt with an exception.
                             if verbose:
                                 sys.stdout.write(f'MasterCollection.load: Recursing into dir: {newtarget}\n')
                             # recurse into the directory
-                            self.load(newtarget, verbose=verbose, recurse=recurse, relax=relax, _top=False)
+                            self.load(newtarget, verbose=verbose, recurse=recurse, relax=relax, create=create, _top=False)
                     # If this is an eks file, load it!
                     elif this.endswith(EXT):
-                        self.load(newtarget, verbose=verbose, recurse=recurse, relax=relax, _top=False)
+                        self.load(newtarget, verbose=verbose, recurse=recurse, relax=relax, create=create, _top=False)
             # If the target is a filename, load it
             elif os.path.isfile(target):
                 with open(target,'r') as ff:
-                    self.load(ff, verbose=verbose, relax=relax, _top=False)
+                    self.load(ff, verbose=verbose, relax=relax, create=create, _top=False)
             else:
                 raise Exception(f'MasterCollection.load: No file or directory named: {target}\n')
         # If this is a file object
@@ -2758,9 +2789,9 @@ cause the process to halt with an exception.
                         sys.stdout.write(f'MasterCollection.load: Found conflicting definitions for entry: {value.name}\n')
                         originfile = self.entries[value.name].sourcefile
                         if originfile:
-                            sys.stdout.write(f'MasterCollection.load: Originally defined in file: {originfile}\n')
-                        sys.stdout.write(f'MasterCollection.load: Redundant entry found in file: {sourcefile}\n')
-                        sys.stdout.write(f'MasterCollection.load: Ignoring the redundant entry!\n')
+                            sys.stdout.write(f'    Originally defined in file: {originfile}\n')
+                        sys.stdout.write(f'    Redundant entry found in file: {sourcefile}\n')
+                        sys.stdout.write(f'    Ignoring the redundant entry!\n')
                     # OK.  Everything seems good.
                     else:
                         # If we're operating verbosely, tell the user what we found
@@ -2772,26 +2803,24 @@ cause the process to halt with an exception.
                         value.post(fatal=(not relax))
                         # Add the entry
                         self.entries[value.name] = value
-                        # Add this master to the Entry's list of collections
-                        value.collections.append(self)
                 # Or, look for a Collection
                 elif isinstance(value, Collection):
                     nfound = False
                     # Not sure how, but this Collection is already associated with another MasterCollection
                     # Raise a warning and DO NOT add it.
-                    if value.master is not None:
+                    if not (value.master is None or value.master is self):
                         sys.stdout.write(f'MasterCollection.load: Collection {value.name} is already associated with another MasterCollection\n')
-                        sys.stdout.write(f'MasterCollection.load: Defined in file: {sourcefile}\n')
+                        sys.stdout.write(f'    Defined in file: {sourcefile}\n')
                     # There is already a Collection with this name in the MasterCollection
                     # Raise a warning and DO NOT add it.
                     elif value.name in self.children:
                         sys.stdout.write(f'MasterCollection.load: Found conflicting definitions for Collection: {value.name}\n')
                         originfile = self.children[value.name].sourcefile
                         if originfile:
-                            sys.stdout.write(f'MasterCollection.load: Originally defined in file: {originfile}\n')
+                            sys.stdout.write(f'    Originally defined in file: {originfile}\n')
                         if value.sourcefile:
-                            sys.stdout.write(f'MasterCollection.load: Redundant Collection found in file: {value.sourcefile}\n')
-                        sys.stdout.write(f'MasterCollection.load: Ignoring the redundant Collection!\n')
+                            sys.stdout.write(f'    Redundant Collection found in file: {value.sourcefile}\n')
+                        sys.stdout.write(f'    Ignoring the redundant Collection!\n')
                     # OK.  Everything seems acceptable.  Add the collection
                     else:
                         # If we're operating verbosely, tell the user what we found.
@@ -2802,7 +2831,7 @@ cause the process to halt with an exception.
                         for c in value.collections():
                             c.sourcefile = sourcefile
                             c.master = self
-                        # Recurse into sub-collections
+                        # Add the collection to the MasterCollection
                         self.children[value.name] = value
             # Warn the user if there were no objects found.
             if nfound:
@@ -2837,11 +2866,16 @@ cause the process to halt with an exception.
                             if c is not None:
                                 c.add(entry)
                             # If it doesn't exist, warn the user!
+                            elif create:
+                                sys.stderr.write(f'MasterCollection.load: Unrecognized collection in entry: {entry.name}\n    Creating collection: {cname}\n')
+                                c = Collection(cname)
+                                self.addchild(c)
+                                c.add(entry)
                             else:
                                 sys.stderr.write(f'MasterCollection.load: Error linking entry to its collection: {entry.name}\n' + \
-                                        f'MasterCollection.load: Failed to find collection: {cname}\n')
+                                        f'    Failed to find collection: {cname}\n')
                                 if entry.sourcefile:
-                                    sys.stderr.write(f'MasterCollectionload: Entry defined in file: {entry.sourcefile}\n')
+                                    sys.stderr.write(f'    Entry defined in file: {entry.sourcefile}\n')
 
         
     def addchild(self, cnew):
@@ -2849,20 +2883,42 @@ cause the process to halt with an exception.
     mc.addchild(cnew)
     
 The new member class must be a Collection (not a SubCollection or 
-MasterCollection), and the entries must be unique or consistent.  Entries that
-are redundant with Entries in this MasterCollection will not raise an Exception
-if they point to identical istances.  Otherwise, an exception is raised.
+MasterCollection), and the entries must be unique or consistent with the 
+entries already in the MasterCollection.  Entries that are redundant with 
+Entries in this MasterCollection will not raise an Exception if they point
+to identical istances.  Otherwise, an exception is raised.
+
+This collection and all of its children must either be uncommitted to a 
+MasterCollection or they may be members of this MasterCollection.
 """
         if isinstance(cnew, Collection):
-            # Is this Collection already associated with another MasterCollection
-            if cnew.master is None:
-                cnew.master = self
-            elif cnew.master is not self:
-                raise Exception(f'MasterCollection.addchild: Collection {cnew.name} is already associated with another MasterCollection.')
-            # Does this collide with a previous collection name?
-            if cnew.name in self.children:
-                raise Exception(f'MasterCollection.addchild: There is already a collection with the name: {cnew.name}')
-            # Look for any new entries in the new collection
+            # Scan all children for conflicts
+            for c in cnew.collections():
+                # Check whether this collection belongs to another master
+                if not (c.master is None or c.master is self):
+                    raise Exception(f'MasterCollection.addchild: Collection {c.name} is already committed to another MasterCollection.')
+                # Make sure this collection doesn't conflict with another
+                cc = self.getchild(c.name)
+                if not (cc is None or cc is c):
+                    raise Exception(f'MasterCollection.addchild: Collection {c.name} conflicts with another collection.')
+            # Scan for contradictions in the entries
+            # Keep track of any new entries so we can add them once we know
+            # that the addition is safe.
+            newentries = []
+            for newentry in cnew:
+                # Does the entry already belong to this MasterCollection?
+                oldentry = self.entries.get(newentry.name)
+                # If so, make sure it's the same entry
+                if oldentry is None:
+                    newentries.append(newentry)
+                elif oldentry is not newentry:
+                    raise Exception(f'MasterCollection.addchild: There are contradictory entries for: {newentry.name}')
+                    
+            # OK, this addition is safe
+            # First, set the master collections
+            for c in cnew.collections():
+                c.master = self
+            # Read in all the entries in case there are any new ones.
             for newentry in cnew:
                 # Does the entry already belong to this MasterCollection?
                 oldentry = self.entries.get(newentry.name)
@@ -2877,9 +2933,9 @@ if they point to identical istances.  Otherwise, an exception is raised.
             raise Exception('MasterCollection.addchild: Only Collections can be added as a child of a MasterCollection')
         
 
-    def save(self, target, directory=False, verbose=True, overwrite=True):
+    def save(self, target, verbose=True, overwrite=True, collections=True, collectionfile='000.eks'):
         """SAVE
-    c.save('/path/to/dir', directory=True)
+    c.save('/path/to/dir')
         OR
     c.save('/path/to/file.eks')
         OR
@@ -2890,38 +2946,92 @@ colleciton later.  The save algorithm works in two modes controlled by the
 'directory' keyword value:
 
 ** Single File **
-    c.save('/path/to/file')
+    c.save('/path/to/file.eks')
         OR
     c.save(file_descriptor)
 
-By default, save() treats the argument as a file descriptor or a path to a file.
-If the path to the file does not end in the .eks extension, it will be appended.
-Note that if an incorrect extension is supplied, it will not be removed.  
+By default, save() treats the argument as a file descriptor or a path to a
+file. If the path to the file does not end in the .eks extension, it will 
+be appended.  Note that if an incorrect extension is supplied, it will not
+be removed.  
 
-In this mode of operation, all entries and collections are written to a single 
-file.
+In this mode of operation, all entries and collections are written to a 
+single file.
 
 ** Directory Mode **
-    c.save('/path/to/dir', directory=True)
+    c.save('/path/to/dir')
 
-When the directory keyword is set to True, each entry is saved as a separate 
-file, and the argument must be a string path to an existing directory.  
-Collections are still saved in a single file called 'collections.eks'
+When the target is a path to a directory, each entry is assigned to its 
+own eks file with a name constructed from its entry name.  The collections
+will be saved in their own file.
+
+** Optional Keywords **
+
+verbose     Print a summary of what's going on to stdout?  (def True)
+overwrite   Delete previous file(s) in the way. (def True)
+collections Include the collection tree in the saved data (def True)
+collectionfile  Name of the file to use for collections in directory mode
+            (def 000.eks)
 """
-        if directory:
-            if not isinstance(target, str) and not os.path.isdir(target):
-                raise Exception('MasterCollection.save: In directory mode, the argument must be a path to an existing directory.\n')
+        if isinstance(target,str) and os.path.isdir(target):
             target = os.path.abspath(target)
             
             # First, purge all existing eks files
+            if overwrite:
+                if verbose:
+                    sys.stdout.write('MasterCollection.save: Removing files...\n')
+                for filename in os.listdir(target):
+                    if filename.endswith(EXT):
+                        fullfilename = os.path.join(target,filename)
+                        if verbose:
+                            sys.stdout.write('    ' + fullfilename + '\n')
+                        os.remove(fullfilename)
+            
             if verbose:
-                sys.stdout.write('MasterCollection.save: Removing files...\n')
-            for filename in os.listdir(target):
-                if filename.endswith(EXT):
-                    fullfilename = os.path.join(target,filename)
-                    if verbose:
-                        sys.stdout.write('    ' + fullfilename + '\n')
-                    os.remove(fullfilename)
+                sys.stdout.write('MasterCollection.save: Preparing entries...\n')
+            # empty all the collections lists of all entries.  They will
+            # be updated automatically during the collection save process
+            for entry in self.entries.values():
+                entry.collections = []
+            
+            # Save the collections
+            # First, come up with a safe filename
+            if not collectionfile.endswith(EXT):
+                collectionfile = collectionfile + EXT
+            filename = collectionfile[:-4]
+
+            # Make sure the name hasn't already been created
+            fullfilename = os.path.join(target,collectionfile)
+            for count in range(1,101): 
+                if not os.path.exists(fullfilename):
+                    break
+                fullfilename = os.path.join(target,  filename + '_' + str(count) + EXT)
+            if count == 100:
+                raise Exception('MasterCollection.save: Failed to find a unique file name in 100 attempts with entry: {}'.format(entry.name))
+            
+            # Save the collections
+            if verbose:
+                sys.stdout.write('Saving collecitons to: ' + fullfilename + '\n')
+            first = True    # Write the import statement on the first collection only
+            crecord = {}    # keep track of the varaible names assigned
+            with open(fullfilename,'w') as ff:
+                for ii,c in enumerate(self.collections()):
+                    # Disallow re-calling a master collection save algorithm
+                    if not isinstance(c, MasterCollection):
+                        v = 'c{:03d}'.format(ii)
+                        crecord[c.name] = v
+                        c.save(ff, addimport=first, varname = v)
+                        first = False
+                    
+                # Link the collections and update the entries' collections lists
+                for c in self.collections(rself=False):
+                    # Loop over this collection's sub-collections
+                    for childname in c.children.keys():
+                        ff.write(f'{crecord[c.name]}.addchild({crecord[childname]})\n')
+                    # Update every member entry's collection list to 
+                    # include this collection
+                    for entry in c.entries.values():
+                        entry.collections.append(c.name)
             
             if verbose:
                 sys.stdout.write('MasterCollection.save: Saving entries...\n')
@@ -2944,43 +3054,8 @@ Collections are still saved in a single file called 'collections.eks'
                 # Save the entry
                 if verbose:
                     sys.stdout.write(entry.name + ' --> ' + fullfilename + '\n')
-                entry.save(fullfilename)
+                entry.write(fullfilename)
 
-            # Move on to the collections
-            # First, come up with a safe filename
-            filename = 'collections'
-            # Make sure the name hasn't already been created
-            fullfilename = os.path.join(target,filename + EXT)
-            for count in range(1,101): 
-                if not os.path.exists(fullfilename):
-                    break
-                fullfilename = os.path.join(target, filename + '_' + str(count) + EXT)
-            if count == 100:
-                raise Exception('MasterCollection.save: Failed to find a unique file name in 100 attempts with entry: {}'.format(entry.name))
-            
-            # Save the collections
-            if verbose:
-                sys.stdout.write('Saving collecitons to: ' + fullfilename + '\n')
-            first = True    # Write the import statement on the first collection only
-            crecord = {}    # keep track of the varaible names assigned
-            with open(fullfilename,'w') as ff:
-                for ii,c in enumerate(self.collections()):
-                    # Disallow re-calling a master collection save algorithm
-                    if not isinstance(c, MasterCollection):
-                        v = 'c{:03d}'.format(ii)
-                        crecord[v] = c
-                        c.save(ff, addimport=first, varname = v)
-                        first = False
-                    
-                # Link the collections
-                for v,c in crecord.items():
-                    # Loop over this collection's sub-collections
-                    # This is horribly inefficient, but it will only be an issue
-                    # if the user creates LOTS of collections
-                    for sv,sc in crecord.items():
-                        if sc.name in c.children:
-                            ff.write('{v:s}.addchild({sv:s})\n'.format(v=v,sv=sv))
-                        
         # Single-file mode with a string input
         elif isinstance(target, str):
             # Check for an overwrite error
@@ -2998,7 +3073,7 @@ Collections are still saved in a single file called 'collections.eks'
         elif hasattr(target,'write'):
             first = True
             for ii,entry in enumerate(self):
-                entry.save(target, addimport=first, varname='e{:03d}'.format(ii))
+                entry.write(target, addimport=first, varname='e{:03d}'.format(ii))
                 first = False
             
             # Write the collections
@@ -3007,17 +3082,14 @@ Collections are still saved in a single file called 'collections.eks'
             for ii,c in enumerate(self.collections()):
                 if not isinstance(c, MasterCollection):
                     v = 'c{:03d}'.format(ii)
-                    crecord[v] = c
+                    crecord[c.name] = v
                     c.save(target, addimport=False, varname=v)
-                
-            # Link the collections
-            for v,c in crecord.items():
-                # Loop over this collection's sub-collections
-                # This is horribly inefficient, but it will only be an issue
-                # if the user creates LOTS of collections
-                for sv,sc in crecord.items():
-                    if sc.name in c.children:
-                        target.write('{v:s}.addchild({sv:s})\n'.format(v=v,sv=sv))
+             
+                # Link the collections
+                for c in self.collections(rself=False):
+                    # Loop over this collection's sub-collections
+                    for childname in c.children.keys():
+                        ff.write(f'{crecord[c.name]}.addchild({crecord[childname]})\n')
 
         else:
             raise TypeError('MasterCollection.save: The target must be a string path or a file descriptor. Received: ' + str(type(target)))
@@ -3046,6 +3118,11 @@ method to also look at sub-directories.
 relax (False)
 Load entries and collections in a relaxed mode, so unrecongized entries do not
 cause the process to halt with an exception.
+
+create (True)
+If entries list themselves as belonging to unrecognized collections, setting
+create to True will prompt load() to create those collections rather than
+raising an exception.  A warning will still be printed.
 """
     mc = MasterCollection()
     mc.load(target, *varg, **kwarg)

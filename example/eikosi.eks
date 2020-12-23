@@ -1,0 +1,9 @@
+import eikosi as ek
+
+entry = ek.WebsiteEntry('eikosi:2020')
+entry.author = 'Christopher R. Martin'
+entry.title = 'Eikosi Bibliographic Management Syste'
+entry.url = 'https://github.com/chmarti1/eikosi'
+entry.year = 2020
+
+entry.collections = ['c0', 's1', 's2']

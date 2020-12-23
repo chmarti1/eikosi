@@ -1,0 +1,19 @@
+import eikosi as ek
+
+# Two kinds of collections can be defined: Collections and SubCollections.
+c0 = ek.Collection('c0')
+c1 = ek.Collection('c1')
+c2 = ek.Collection('c2')
+s0 = ek.SubCollection('s0')
+s1 = ek.SubCollection('s1')
+s2 = ek.SubCollection('s2')
+
+# SubCollections are ignored by the MasterCollection at load() time. If 
+# SubCollections do not belong to a Collection when they are collected by
+# the MasterCollection at load() time, they will be lost.
+c0.addchild(s0)
+c1.addchild(s1)
+c2.addchild(s2)
+
+# But Collections can belong to each other too.
+c0.addchild(c1)

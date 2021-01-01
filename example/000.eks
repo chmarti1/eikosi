@@ -1,19 +1,77 @@
 import eikosi as ek
 
+# Collections can be defined in any .eks file, but they are usually stored in
+# 000.eks.  This means they will all have access to one another when 
+# constructing trees of collections.  The awkward filename puts the file at the
+# top of most directories when listed by name.
+#
 # Two kinds of collections can be defined: Collections and SubCollections.
-c0 = ek.Collection('c0')
-c1 = ek.Collection('c1')
-c2 = ek.Collection('c2')
-s0 = ek.SubCollection('s0')
-s1 = ek.SubCollection('s1')
-s2 = ek.SubCollection('s2')
+# Every Collection defined here will be added as a child of the MasterCollection
+# at load time.
+fabric = ek.Collection('fabric')
 
-# SubCollections are ignored by the MasterCollection at load() time. If 
-# SubCollections do not belong to a Collection when they are collected by
-# the MasterCollection at load() time, they will be lost.
-c0.addchild(s0)
-c1.addchild(s1)
-c2.addchild(s2)
+# Subcollections can be added directly as "children" to collections that
+# contain them.  SubCollections are ignored at load time, so if this file
+# doesn't add them to a Collection or one of its SubCollection, they will
+# be lost.
+fabric.createchild('woven')
+fabric.createchild('knitted')
+fabric.createchild('crocheted')
+fabric.createchild('knotted')
+fabric.createchild('tatted')
+fabric.createchild('felted')
 
-# But Collections can belong to each other too.
-c0.addchild(c1)
+# This creates a second 
+fiber = ek.Collection('fiber')
+
+fiber.createchild('wool')
+fiber.createchild('silk')
+# We want to work on the synthetic SubColleciton a little more, so we'll capture
+# the output of createchild()
+s = fiber.createchild('synthetic')
+# Here, we're deepening the tree another layer by adding children to the 
+# synthetic SubCollection
+s.createchild('nylon')
+s.createchild('polyester')
+s.createchild('acrylic')
+
+# Or, instead of capturing the output of createchild(), child collections can
+# be referenced by object notation or by the getchild() method.  Object notation
+# is decidedly neater, but there are some collection names that will cause it
+# to fail (e.g. names containing special characters like ':', '-', '&', etc.).
+# For that reason, fabric.getchild('woven').addchild(fiber) will do the same
+# thing.
+fabric.woven.addchild(fiber)
+fabric.knitted.addchild(fiber)
+fabric.crocheted.addchild(fiber)
+fabric.knotted.addchild(fiber)
+fabric.tatted.addchild(fiber)
+fabric.felted.addchild(fiber)
+
+# In these examples, we create classes for some different equipment used in 
+# textiles.  We will parse them out to the individual fabrics as appropriate.
+equipment = ek.Collection('equipment')
+
+# Notice that it is essential that we use addchild() to add the existing 
+# SubCollection named 'loom' to fabric.woven.  Because loom has no children,
+# we might be tempted to use createchild() on equipment and on fabric.woven,
+# but that would create two SubCollections with the same name, which would
+# generate an error at load time.
+s = equipment.createchild('loom')
+fabric.woven.addchild(s)
+
+s = equipment.createchild('shuttle')
+fabric.tatted.addchild(s)
+fabric.woven.addchild(s)
+fabric.knotted.addchild(s)
+
+s = equipment.createchild('needle')
+fabric.crocheted.addchild(s)
+fabric.knitted.addchild(s)
+fabric.tatted.addchild(s)
+
+s = equipment.createchild('hook')
+fabric.crocheted.addchild(s)
+fabric.tatted.addchild(s)
+
+

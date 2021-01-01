@@ -1,0 +1,13 @@
+import eikosi as ek
+
+entry = ek.BookEntry('book:2017')
+# required
+entry.author = AuthorList([['Bryan','Brant'],['Britany','Brown']])
+entry.title = 'Buying Buoyant Bottles'
+entry.publisher = 'Blotting Brothers'
+entry.address = 'Boston'
+entry.year = 2018
+# optional
+entry.edition = '2nd'
+
+entry.collections = ['silk', 'woven', 'hook']

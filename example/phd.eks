@@ -1,0 +1,14 @@
+import eikosi as ek
+
+entry = ek.PhdEntry('phd:2015')
+# required
+entry.author = 'Petrified Petitioner'
+entry.title = 'Please Pardon the Petrified Petitioner'
+entry.school = 'Princeton University'
+entry.year = 2015
+# optional
+entry.address = 'Princeton'
+entry.month = 'October'
+entry.day = 12
+
+

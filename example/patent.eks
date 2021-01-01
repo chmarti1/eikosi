@@ -1,0 +1,13 @@
+import eikosi as ek
+
+entry = ek.PatentEntry('patent:2016')
+# required
+entry.author = ['Peter Parker', 'Petra Potters']
+entry.title = 'Petulant Perculator'
+entry.number = '12/11332211'
+entry.year = 2016
+# optional
+entry.assignee = 'Pentagonal Petrochemical Polyglomerate'
+entry.nationality = 'Portuguese'
+entry.month = 'October'
+entry.day = 12

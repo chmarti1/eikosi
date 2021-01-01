@@ -1,10 +1,12 @@
 import eikosi as ek
 
-entry = ek.ConferenceEntry('b:2020')
-entry.author = 'Connie Conference Constructor'
-entry.title = 'An example nonsense conference paper'
-entry.booktitle = 'Conjured Conference'
-entry.year = 2020
+# The ProceedingsEntry is identical to ConferenceEntry
+entry = ek.ConferenceEntry('conference:2019')
+# required
+entry.author = 'Connie Conferee and Charles Competent'
+entry.title = 'Collegial conjecture on conference collections'
+entry.booktitle = 'Centennial Conjured Conference'
+entry.year = 2019
 entry.address = 'Carlsbad, CA'
 
-entry.collections = ['s1']
+entry.collections = ['crocheted', 'polyester', 'hook']

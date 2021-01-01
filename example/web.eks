@@ -1,0 +1,14 @@
+import eikosi as ek
+
+entry = ek.WebsiteEntry('website:2018')
+# required
+entry.url = 'http://www....'
+# Optional
+entry.title = 'Wrangling the World Wide Web'
+entry.author = 'Warren Webmaster'
+entry.institution = 'Wiser Webcrawling Inc.'
+entry.month = 'Dec'
+entry.day = 12
+entry.year = 2018
+
+entry.collections = ['knitted', 'needle', 'acrylic']

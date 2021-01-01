@@ -121,7 +121,7 @@ class.
 # (2) Write the find algorithm.
 
 
-import os, sys
+import os, sys, io
 from math import log2, ceil
 # reflexive import for forward references
 import eikosi as ek
@@ -183,11 +183,14 @@ Or, the attribute may be modified after initialization.
     def __init__(self, source, full=M_DEF_FULL):
         self.index = None
         self.full = full
+        if isinstance(source,Month):
+            self.index = source.index
+            self.full = source.full
         # Parse a string
-        if isinstance(source,str):
+        elif isinstance(source,str):
             # Force lower case and strip out white space
             msource = source.lower().strip()
-            # Search for the month in the 
+            # Search for the month in
             try:
                 self.index = self.months_full.index(msource)
                 return
@@ -211,12 +214,12 @@ Or, the attribute may be modified after initialization.
             try:
                 self.index = int(source)
             except:
-                raise ValueError(f'Month: Expected a month name, its abbreviation, or an integer, but received: {msource}\n')
+                raise ValueError(f'Month: Expected a month name, its abbreviation, or an integer, but received: {repr(source)}\n')
         # Parse an integer
         elif isinstance(source, int):
             self.index = source
         else:
-            raise ValueError(f'Month: Expected a month name, its abbreviation, or an integer, but received: {msource}\n')
+            raise ValueError(f'Month: Expected a month name, its abbreviation, or an integer, but received: {repr(source)}\n')
 
         # We now have an integer.  Now, make sure it is in-range.
         if self.index < 1 or self.index > 12:
@@ -705,7 +708,10 @@ It must be of the form
         self.__dict__['bib'] = dict()
 
     def __str__(self):
-        return self.show(doc=True, posix=True, width=80)
+        f = io.StringIO()
+        self.write_txt(target=f, posix=True, width=80)
+        f.seek(0)
+        return f.read()
         
     def __repr__(self):
         thisclass = self.__class__.__name__
@@ -1749,7 +1755,7 @@ posix   If True, posix terminal formatting escape characters will be inserted
         out += f'{bold}{self.url}{normal}'
         if 'year' in self:
             out += f', accessed: {self._date()}'
-        
+        out += '\n'
         
         if doc and self.doc:
             out += self.doc
@@ -1810,12 +1816,23 @@ Collections at the same depth of the tree will appear together in the
 iteration, and higher layers always appear first.
 
 inclusive (default True)
-When Falce, the Collection instance used to initiate the iteration is not 
+When False, the Collection instance used to initiate the iteration is not 
 included in the iteration.
+
+deep (default True)
+When True, the iteration recurses into the children of children.
 """
-    def __init__(self, target, depthfirst = False, inclusive=True):
+    def __init__(self, target, depthfirst = False, inclusive=True, deep=True):
         self.target = target
         self.schedule = []
+        # shallow operation is easier, so knock that out first
+        if not deep :
+            # First check that at least inclusive or deep is set.
+            if not inclusive:
+                raise Exception('CollectionIterator: Cannot iterate neither inclusively or deeply; pick at least one.')
+            self.schedule = list(target._children.values())
+            return
+            
         # As a test for tree integrity, keep track of each unique collection
         # Each time the _iflag of a new collection is set, increment count.
         count = 0
@@ -1838,12 +1855,12 @@ included in the iteration.
         
     def _depth_last(self, target, count):
         """Accumulate children in a depth-last ordered list"""
-        for child in target.children.values():
+        for child in target._children.values():
             if not child._iflag:
                 child._iflag = True
                 count += 1
                 self.schedule.append(child)
-        for child in target.children.values():
+        for child in target._children.values():
             count = self._depth_last(child, count)
         return count
                 
@@ -1852,7 +1869,7 @@ included in the iteration.
         if not target._iflag:
             target._iflag = True
             count += 1
-            for child in target.children.values():
+            for child in target._children.values():
                 self._depth_first(child)
             self.schedule.append(target)
         return count
@@ -1907,9 +1924,9 @@ objects, and loops in the tree are permitted.
     # The doc string is a place for optional comments on the collection
     doc = ''
     # The entries that belong to the dict are all stored here
-    entries = {}
+    _entries = {}
     # The Collections that belong to this collection are all stored here
-    children = {}
+    _children = {}
     # This is a pointer to the MasterCollection that contains this Collection
     master = None
     # This is a record of the file where the Collection was defined
@@ -1924,15 +1941,15 @@ objects, and loops in the tree are permitted.
     def __init__(self, name):
         # Make explicit local attributes for the most essential elements.
         self.name = ''
-        self.entries = {}
-        self.children = {}
+        self._entries = {}
+        self._children = {}
         self._sorted = {}
 
         if isinstance(name, ProtoCollection):
             self.name = str(name.name)
             self.doc = str(name.doc)
-            self.entries.update(name.entries)
-            self.children.update(name.children)            
+            self._entries.update(name._entries)
+            self._children.update(name._children)            
         elif isinstance(name,str):
             if name in ProtoCollection.__dict__ or name in MasterCollection.__dict__:
                 sys.stdout.write(f'ProtoCollection.__init__: Warning. The colleciton name, {name} collides with an attribute/method.\n')
@@ -1944,15 +1961,18 @@ objects, and loops in the tree are permitted.
         
     def __iter__(self):
         for c in CollectionIterator(self, depthfirst=False):
-            for entry in c.entries.values():
+            for entry in c._entries.values():
                 yield entry
                 
     def __getattr__(self, item):
         if item in self.__dict__:
             return self.__dict__[item]
-        elif item in self.__dict__['children']:
-            return self.__dict__['children'][item]
+        elif item in self.__dict__['_children']:
+            return self.__dict__['_children'][item]
         raise AttributeError(item)
+        
+    def __repr__(self):
+        return f'{self.__class__.__name__}(\'{self.name}\')'
         
     def _set_iflag(self, value):
         """Set the value of _iflag for this and all child Collections
@@ -1971,7 +1991,7 @@ after an loop iteration is complete.
         if self._iflag != value:
             count += 1
             self._iflag = value
-            for child in self.children.values():
+            for child in self._children.values():
                 count += child._set_iflag(value)
         return count
         
@@ -1982,17 +2002,17 @@ after an loop iteration is complete.
     c.flatten(remove=False)
     
 Brings all entries from this collection's children into its dict of 
-entries.  Unless the _remove_ keyword is set to False, all child 
+entries.  Unless the *remove* keyword is set to False, all child 
 collections will also be removed. 
 """
         for c in self.collections(rself=False):
-            for newentry in c.entries.values():
+            for newentry in c._entries.values():
                 # Check to see if this entry already belongs to self
                 if self not in newentry.collections:
-                    self.entries[newentry.name] = newentry
+                    self._entries[newentry.name] = newentry
                     newentry.collections.append(self)
         if remove:
-            self.children = {}
+            self._children = {}
             
     def merge(self, mc, name):
         """Merge collections from other MasterCollections
@@ -2035,13 +2055,13 @@ provided.
         # Test every new entry for a collision.  Redundant names are allowed
         # if they point to identical entries.
         for new in mc:
-            old = master.entries.get(new.name)
+            old = master._entries.get(new.name)
             if old is not None and old is not new:
                 raise Exception(f'ProtoCollection.merge: Found conflicting entries for: {new.name}')
         
         # OK, the merge is safe.  Time to proceed.
         # Read in all the new entries
-        master.entries.update(mc.entries)
+        master._entries.update(mc._entries)
         
         # Define a new collection to add to self.
         if isinstance(self, MasterCollection):
@@ -2064,7 +2084,7 @@ provided.
                 target._iflag = True
                 count += 1
                 # Loop through the children of this collection
-                for n,c in target.children.items():
+                for n,c in target._children.items():
                     # If this child has not yet been demoted
                     if not isinstance(c, SubCollection):
                         cc = record.get(c.name)
@@ -2072,7 +2092,7 @@ provided.
                             cc = SubCollection(c)
                             record[c.name] = cc
                         # Demote it and replace it in the dictionary
-                        target.children[n] = cc
+                        target._children[n] = cc
                         c = cc
                     count = _demote(c, count)
             return count
@@ -2082,13 +2102,13 @@ provided.
             sys.stderr.write('ProtoCollection.merge: There was a child count missmatch while demoting to SubCollections.\n')
             
         # Add the collection
-        self.children[name] = nc
+        self._children[name] = nc
         # And reset the sorted dictionaries
         self._sorted = {}
         
         # Empty the original master collection
-        mc.entries = {}
-        mc.children = {}
+        mc._entries = {}
+        mc._children = {}
         mc._sorted = {}
         
     def copy(self):
@@ -2106,9 +2126,9 @@ To change the type of collection, use the respective class initializer instead.
         return self.__class__(self) 
 
         
-    def collections(self, depthfirst=False, rself=True):
+    def collections(self, depthfirst=False, rself=True, deep=True):
         """Return an iterator over this and all child collections
-    for this_collection in c.collections():
+    for c in this_collection.collections():
         ...
 
 This iterates over all unique Collections and SubCollections that are 
@@ -2120,8 +2140,12 @@ Return collections at the bottom of the tree first?
 
 rself (True)
 Include self in the iteration?
+
+deep (True)
+Decend recursively into the children of children? When False, only the 
+children of this collection are included in the iteration.
 """
-        return CollectionIterator(self, depthfirst=depthfirst, inclusive=rself)
+        return CollectionIterator(self, depthfirst=depthfirst, inclusive=rself, deep=deep)
         
 
     def duplicates(self):
@@ -2171,8 +2195,9 @@ Generates a list of lists of possible duplicate entries in the collection.
     this_collection.addchild(new_collection)
     
 New collections must either belong to the same MasterCollection or may not
-belong to a MasterCollection.  This operation will join them to the 
-current MasterCollection.
+belong to a MasterCollection.  This operation will join them, their 
+children, and their entries to this collection and the current 
+MasterCollection.
 """
         # Check for correct Collection type
         if not isinstance(cnew, (Collection,SubCollection)):
@@ -2183,16 +2208,53 @@ current MasterCollection.
                 raise Exception(f'ProtoCollection.addcollection: Child {cnew.name} belongs to a master, but parent {self.name} does not.')
             elif self.master is not cnew.master:
                 raise Exception(f'ProtoCollection.addcollection: Child {cnew.name} and parent {self.name} have different masters.')
-        # Check for a name collision
-        if self.haschild(cnew.name):
-            raise Exception(f'ProtoCollection.addcollection: Parent {self.name} already has a child {cnew.name}.')
-        # Add as a member
-        self.children[cnew.name] = cnew
-        # Force membership to the same master, even if master is None
-        cnew.master = self.master
-        # I need to clear the _sorted dict
-        self._sorted = {}
+        # Check for name collisions.
+        # If this collection already belongs to a MasterCollection, we'll
+        # check against that.  Otherwise, check against self
+        check = self.master if self.master else self
+        # First, check against the collections
+        for c in cnew.collections():
+            old = check.getchild(c.name)
+            # If this name already exists in the collection tree,
+            # make sure it is consistent.
+            if old is not None:
+                if old is not c:
+                    raise Exception(f'ProtoCollection.addcollection: Conflicting collections with name: {c.name}')
+                # Verify compatible master collections
+                elif not (old.master is None or old.master is self.master):
+                    raise Exception(f'ProtoCollection.addcollection: Collection assigned to a different master: {c.name}')
+        # Now, check for a conflict with the entries
+        for entry in cnew:
+            old = check.get(entry.name)
+            if not (old is None or old is entry):
+                raise Exception(f'ProtoCollection.addcollection: Conflicting entries with name: {entry.name}')
         
+        # The addition is safe; go ahead and add it.
+        self._children[cnew.name] = cnew
+        # Update the master collection record
+        if self.master:
+            # Force all of the new collections to belong to the master
+            for c in cnew.collections():
+                c.master = self.master
+            # Add all entries to the master collection
+            for entry in cnew:
+                c.master.add(entry)
+        # This invalidates all previous sorted records
+        root = self.master if self.master else self
+        for c in root.collections():
+            c._sorted = {}
+
+
+    def createchild(self, name):
+        """Create a SubColleciton and add it to this Collection or SubCollection
+    s = c.createchild(name)
+   
+Creates a new subcollection with name, "name", adds it to the Collection,
+and returns it.  
+"""
+        s = SubCollection(name)
+        self.addchild(s)
+        return s
         
     def removechild(self, target):
         """Remove a Collection or SubCollection from this collection
@@ -2214,22 +2276,25 @@ Unlike the removal of entries, this operation is never recursive.
             raise TypeError(f'ProtoCollection.removechild: Expected a collection name or a collection instance. Received: {repr(target)}')
         
         # Does this target exist in the collection?
-        if cname in self.children:
+        if cname in self._children:
             # Test for a contradiction in the specified target
             if target is None:
-                target = self.children[cname]
-            elif target is not self.children[cname]:
+                target = self._children[cname]
+            elif target is not self._children[cname]:
                 raise Exception(f'ProtoCollection.remove: Contradicting records for Collection {cname}. Aborting.')
             # OK, time to remove. 
-            del self.children[cname]
-            # If I was this collection's Master and it no longer appears
-            # in the Collection tree, then it no longer has a master
-            if target.master is self and self.getchild(cname) is None:
+            del self._children[cname]
+            # If there are no more instances of the Collection in the master
+            if target.master and not target.master.has(cname):
+                # Then, it has been orphaned
                 target.master = None
             # Unless I am a master collection, the _sorted dict needs to be
             # reset.
             if not isinstance(self, MasterCollection):
-                self._sorted = {}
+                # This invalidates all previous sorted records
+                root = self.master if self.master else self
+                for c in root.collections():
+                    c._sorted = {}
         else:
             raise Exception(f'ProtoCollection.remove: No child found {cname}')
             
@@ -2258,9 +2323,11 @@ their id() values instead (using the method: collection1 is collection2)
         raise TypeError('Collection.haschild: argument must be a string or collection. Found: ' + repr(type(ctest)))
         
         
-    def getchild(self, cname):
+    def getchild(self, cname, deep=True):
         """Retrieve a SubCollection that belongs to this collection.
-    c = this_collection.getchild(collection_name)
+    c = this_collection.getchild(name)
+        OR
+    c = this_collection.getchild(name, deep=False)
     
 This retrieve operation will succeed if the collection is a member of this or 
 any of the sub-collections.  If the name is not found as a child of the evoking
@@ -2290,7 +2357,7 @@ done unless the entries are different.
         # If this Collection does not belong to a MasterColleciton yet
         if self.master is None:
             # Test for a name collision
-            test = self.entries.get(newentry.name)
+            test = self._entries.get(newentry.name)
             if test is not None and test is not newentry:
                 raise Exception(f'ProtoCollection.add: Entry contradicts an existing entry for: {newentry.name}')
         # If this Collection is part of a MasterCollection, the new entry
@@ -2301,9 +2368,11 @@ done unless the entries are different.
             self.master.add(newentry)
         
         # Add the new entry to this collection
-        self.entries[newentry.name] = newentry
+        self._entries[newentry.name] = newentry
         # Finally, adding a new entry invalidates previous sort operaitons
-        self._sorted = {}
+        root = self.master if self.master else self
+        for c in root.collections():
+            c._sorted = {}
         
         
     def remove(self, target, recurse=True, fatal=True):
@@ -2349,20 +2418,28 @@ were found matching the target.
             # Loop through all child Collections
             for c in self.collections():
                 nfound += c.remove(target, recurse=False, fatal=False)
+            # If entries were found, that invalidates all previous search 
+            # records.
+            if nfound > 0:
+                root = self.master if self.master else self
+                for c in root.collections():
+                    c._sorted = {}
             # Raise an exception?
             if not fatal or nfound:
                 return nfound
         else:
             # If not operating recursively, then the remove operation only applies
             # to this collection.
-            if entryname in self.entries:
+            if entryname in self._entries:
                 # If the target entry was not supplied, get it
-                if target is not None and target is not self.entries[entryname]:
+                if target is not None and target is not self._entries[entryname]:
                     raise Exception(f'ProtoCollection.remove: Entry {entryname} contradicts the entry.  Aborting.')
                 # Finally, remove the entry from the collection
-                del self.entries[entryname]
-                # Reset the sorted dict
-                self._sorted = {}
+                del self._entries[entryname]
+                # Finally, adding a new entry invalidates previous sort operaitons
+                root = self.master if self.master else self
+                for c in root.collections():
+                    c._sorted = {}
                 return 1
             elif not fatal:
                 return 0
@@ -2370,37 +2447,55 @@ were found matching the target.
 
 
 
-    def get(self, entryname):
+    def get(self, entryname, deep=True):
         """Retrieve an entry by its name
     entry = c.get(entryname)
+        OR
+    entry = c.get(entryname, deep=False)
     
 Returns the entry if it is a member of the collection or any of its child-
-collections.  If the entry is not found, returns None instead.
+collections.  If the entry is not found, returns None instead.  Setting
+the deep keyword to False excludes this collection's children from the
+retrieval.  The entry must be a member of this collection.
 """
-        for this in CollectionIterator(self, depthfirst=False):
-            value = this.entries.get(entryname)
-            if value is not None:
-                return value
+        if deep:
+            for this in CollectionIterator(self, depthfirst=False):
+                value = this._entries.get(entryname)
+                if value is not None:
+                    return value
+        else:
+            return self._entries.get(entryname)
         return None
 
 
-    def has(self, entryname):
+    def has(self, entryname, deep=True):
         """Test whether the entry belongs to this collection or its children
     TF = c.has(entryname)
         OR
     TF = c.has(entry_instance)
+        OR
+    TF = c.has(..., deep=False)
     
 If the argument is a string, it is treated as an entry name to search for.  If
 it is an Entry instance, then it must also be identical to the Entry found in
 the Collection.
+
+Setting the optional keyword to False excludes the collection's children from
+the search.  The entry must be a member of this collection.
 """
+        if deep:
+            get = self.get
+        else:
+            get = self._entries.get
+            
         if isinstance(entryname, Entry):
-            return self.get(entryname.name) is entryname
+            return get(entryname.name) is entryname
         elif isinstance(entryname, str):
-            return self.get(entryname) is not None
+            return get(entryname) is not None
         raise TypeError('Collection.has: The argument must be a string or an Entry type.\n')
+
         
-    def list(self, by='name', width=80, height=12):
+    def list(self, by='name', width=80, height=12, deep=True):
         """Print a list of the Colleciton's entries to standard out
     c.list()
 
@@ -2416,6 +2511,10 @@ The absolute maximum terminal width to occupy with the list
 
 height  (12)
 The number of entries before the list will be broken into columns
+
+deep    (True)
+When set to True, the list will include members of child collections. When
+False, the list will only include Entries that belong to this collection.
 """
         
         sys.stdout.write('~\nListing entries in collection: ' + self.name + '\n')
@@ -2429,7 +2528,12 @@ The number of entries before the list will be broken into columns
         colwidth = 0 # We will detect the maximum name length in a moment
         
         # Create a sorted list of names
-        schedule = self.sort(by)
+        if deep:
+            schedule = self.sort(by)
+        else:
+            schedule = list(self._entries.values())
+            schedule.sort(key=lambda x: x.__getattr__(by))
+            
         N = len(schedule)
         
         # If there needs to be more than one column
@@ -2460,15 +2564,27 @@ The number of entries before the list will be broken into columns
                 sys.stdout.write(thisentry.name + '\n')
         
         
-    def listchildren(self, _indlvl=''):
+    def listchildren(self, deep=True, _indlvl=''):
         """Prints a formatted representation of the collection tree
     c.listchildren()
+        OR
+    c.listchildren(deep=False)
     
 If the same child is found multiple times in the list, its contents will
-not be shown redundantly.  This prevent infinite cyclical loops.
+not be shown redundantly.  This prevent infinite cyclical loops.  When the
+deep keyword is set to False, only the children that belong directly to 
+this collection will be listed.  Their children will not be displayed.
 """
         # Always start by printing the name of this child
-        sys.stdout.write(self.name + '\n')
+        if self._entries:
+            sys.stdout.write(f'{self.name} ({len(self._entries)})\n')
+        else:
+            sys.stdout.write(f'{self.name}\n')
+        # If this is not deep, but there is indentation, there is no need
+        # to keep going.
+        if _indlvl and not deep:
+            return
+            
         # If this collection hasn't already been explored
         if not self._iflag:
             # Mark it
@@ -2476,21 +2592,21 @@ not be shown redundantly.  This prevent infinite cyclical loops.
             # and explore it
             # Detect the number of children so we can identify the last one
             # Modify the indentation level
-            nn = len(self.children)-1
-            cv = list(self.children.values())
+            nn = len(self._children)-1
+            cv = list(self._children.values())
             cv.sort(key=lambda x: x.name)
             for ii, c in enumerate(cv):
                 # We are responsible for constructing the tree lines
                 sys.stdout.write(_indlvl)
                 if ii<nn:
                     sys.stdout.write('|-> ')
-                    c.listchildren(_indlvl + '|   ')
+                    c.listchildren(deep=deep, _indlvl=_indlvl + '|   ')
                 else:
                     sys.stdout.write("'-> ")
-                    c.listchildren(_indlvl + '    ')
+                    c.listchildren(deep=deep, _indlvl=_indlvl + '    ')
         # If this collection has already been displayed and it has children
         # just display a placeholder for the redundant display
-        elif self.children:
+        elif self._children:
             sys.stdout.write(_indlvl + "'-> ...\n")
         # If this is the root of the recursion tree
         if len(_indlvl) == 0:
@@ -2537,7 +2653,18 @@ by sort(by, omit=True) will not be persistent.
                 if by in entry:
                     return entry.__getattr__(by)
                 return None
+            temp = sorted(self, key=_key)
             self._sorted[by] = sorted(self, key=_key)
+            # Deduplicate the list
+            ii = 1
+            n = len(temp)
+            while ii<n:
+                while ii<n and temp[ii] is temp[ii-1]:
+                    del temp[ii]
+                    n-=1
+                ii += 1
+            # Stow the result
+            self._sorted[by] = temp
         
         # OK, we have a sorted result, now deal with the keyword options
         # If the list needs to be modified, first make a copy
@@ -2560,9 +2687,9 @@ by sort(by, omit=True) will not be persistent.
         return self._sorted[by]
         
 
-    def save(self, target, addimport=True, varname='c'):
+    def write(self, target, addimport=True, varname='c'):
         """Save the collection to an executable python file that is capable of re-defining it
-    c.save('/path/to/file.eks')
+    c.write('/path/to/file.eks')
 """
         if isinstance(target,str):
             if not target.endswith(EXT):
@@ -2593,7 +2720,7 @@ by sort(by, omit=True) will not be persistent.
                 return self.savebib(ff)
         elif hasattr(target, 'write'):
             for entry in self.sort('year'):
-                entry.savebib(target)
+                entry.write_bib(target)
         else:
             raise TypeError('Collection.savebib: The argument must be either a path or a file descriptor.')
             
@@ -2664,17 +2791,17 @@ class functions.  See update(), add(), addchild(), merge(),
         self.master = self
 
     def __iter__(self):
-        return self.entries.values().__iter__()
+        return self._entries.values().__iter__()
         
     def __len__(self):
-        return len(self.entries)
+        return len(self._entries)
         
     def add(self, newentry):
         """Add an entry to this MasterCollection or subordinate Collections
     mc.add(newentry)
     
-The new entry will be added to the MasterCollection if it does not already
-exist within the MasterColleciton.  If the entry already agrees with a 
+The new entry will be added as a member of the MasterCollection if it does not
+already exist within the MasterColleciton.  If the entry already agrees with a 
 member of the MasterCollection, nothing will be done.  If the entry 
 conflicts with a prior entry, an Exception is raised.
 """
@@ -2682,25 +2809,31 @@ conflicts with a prior entry, an Exception is raised.
             raise Exception('MasterCollection.add: Cannot add a non-Entry: ' + repr(type(newentry)))
         # Check for a collision.  If it's safe, go ahead and add the entry
         test = self.get(newentry.name)
-        if test is not None and test is not newentry:
+        # If there is no conflict, then we need to clear any prior sortings
+        # and it is safe to add the new entry
+        if test is None:
+            self._entries[newentry.name] = newentry
+            # This invalidates all previous sorted records for the Master only.
+            self._sorted = {}
+        # If there is already an entry with this name make sure it doesn't
+        # contradict the new entry, and exit gracefully.
+        elif test is not newentry:
             raise Exception('MasterCollection.add: The new entry collides with an existing entry for: ' + newentry.name)
-            
-        # Add the new entry to this collection
-        self.entries[newentry.name] = newentry
-        # Add this collection to the entry's list of collections
-        newentry.collections.append(self)
-        # Adding a new species invalidates previous sort operations
-        self._sorted = {}
         
-    def get(self, entryname):
-        """Get an entry from the MasterCollection
+    def get(self, entryname, deep=True):
+        """Get an entry that belongs to the MasterCollection
     E = mc.get('name_string')
     
 Returns None if the name is not found.
+
+For compatibility with the get() method of other collections, 
+MasterCollections also have a "deep" keyword which defaults to True.  Since 
+MasterCollections always contain all of the entries of their children, this
+keyword has no effect.
 """
-        return self.entries.get(entryname)
+        return self._entries.get(entryname)
         
-    def has(self, entryname):
+    def has(self, entryname, deep=True):
         """Test whether the MasterCollection contains an entry
     tf = mc.has('name_string')
         OR
@@ -2709,9 +2842,14 @@ Returns None if the name is not found.
 Accepts either an entry name string or an entry instance.  If the argument is
 an entry instance, the entry dict is first searched for a matching name.  If
 found, the instances must also be identical.
+
+For compatibility with the has() method of other collections, 
+MasterCollections also have a "deep" keyword which defaults to True.  Since 
+MasterCollections always contain all of the entries of their children, this
+keyword has no effect.
 """
         if isinstance(entryname, str):
-            return entryname in self.entries
+            return entryname in self._entries
         elif isinstance(entryname, Entry):
             return self.get(entryname.name) is entryname
         raise TypeError('MasterCollection.has: The argument must be a string or an Entry type.\n')
@@ -2785,9 +2923,9 @@ cause the process to halt with an exception.
                     nfound = False
                     # If this Entry is already in the MasterCollection raise a warning
                     # and DO NOT add it.
-                    if value.name in self.entries:
+                    if value.name in self._entries:
                         sys.stdout.write(f'MasterCollection.load: Found conflicting definitions for entry: {value.name}\n')
-                        originfile = self.entries[value.name].sourcefile
+                        originfile = self._entries[value.name].sourcefile
                         if originfile:
                             sys.stdout.write(f'    Originally defined in file: {originfile}\n')
                         sys.stdout.write(f'    Redundant entry found in file: {sourcefile}\n')
@@ -2802,7 +2940,7 @@ cause the process to halt with an exception.
                         # Run post-processing
                         value.post(fatal=(not relax))
                         # Add the entry
-                        self.entries[value.name] = value
+                        self._entries[value.name] = value
                 # Or, look for a Collection
                 elif isinstance(value, Collection):
                     nfound = False
@@ -2813,9 +2951,9 @@ cause the process to halt with an exception.
                         sys.stdout.write(f'    Defined in file: {sourcefile}\n')
                     # There is already a Collection with this name in the MasterCollection
                     # Raise a warning and DO NOT add it.
-                    elif value.name in self.children:
+                    elif value.name in self._children:
                         sys.stdout.write(f'MasterCollection.load: Found conflicting definitions for Collection: {value.name}\n')
-                        originfile = self.children[value.name].sourcefile
+                        originfile = self._children[value.name].sourcefile
                         if originfile:
                             sys.stdout.write(f'    Originally defined in file: {originfile}\n')
                         if value.sourcefile:
@@ -2832,7 +2970,7 @@ cause the process to halt with an exception.
                             c.sourcefile = sourcefile
                             c.master = self
                         # Add the collection to the MasterCollection
-                        self.children[value.name] = value
+                        self._children[value.name] = value
             # Warn the user if there were no objects found.
             if nfound:
                 sys.stderr.write(f'MasterCollection.load: No recognized objects in file: {sourcefile}\n')
@@ -2907,7 +3045,7 @@ MasterCollection or they may be members of this MasterCollection.
             newentries = []
             for newentry in cnew:
                 # Does the entry already belong to this MasterCollection?
-                oldentry = self.entries.get(newentry.name)
+                oldentry = self._entries.get(newentry.name)
                 # If so, make sure it's the same entry
                 if oldentry is None:
                     newentries.append(newentry)
@@ -2921,14 +3059,16 @@ MasterCollection or they may be members of this MasterCollection.
             # Read in all the entries in case there are any new ones.
             for newentry in cnew:
                 # Does the entry already belong to this MasterCollection?
-                oldentry = self.entries.get(newentry.name)
+                oldentry = self._entries.get(newentry.name)
                 # If so, make sure it's the same entry
                 if oldentry is not None and oldentry is not newentry:
                     raise Exception(f'MasterCollection.addchild: There are contradictory entries for: {newentry.name}')
                 # If the entry does not exist, add it.
                 else:
-                    self.entries[newentry.name] = newentry
-            self.children[cnew.name] = cnew
+                    self._entries[newentry.name] = newentry
+            self._children[cnew.name] = cnew
+            # This probably invalidates all previous sorted data for Master only
+            self._sorted = {}
         else:
             raise Exception('MasterCollection.addchild: Only Collections can be added as a child of a MasterCollection')
         
@@ -2973,6 +3113,9 @@ collections Include the collection tree in the saved data (def True)
 collectionfile  Name of the file to use for collections in directory mode
             (def 000.eks)
 """
+        ##################
+        # DIRECTORY MODE #
+        ##################
         if isinstance(target,str) and os.path.isdir(target):
             target = os.path.abspath(target)
             
@@ -2991,7 +3134,7 @@ collectionfile  Name of the file to use for collections in directory mode
                 sys.stdout.write('MasterCollection.save: Preparing entries...\n')
             # empty all the collections lists of all entries.  They will
             # be updated automatically during the collection save process
-            for entry in self.entries.values():
+            for entry in self._entries.values():
                 entry.collections = []
             
             # Save the collections
@@ -3026,11 +3169,11 @@ collectionfile  Name of the file to use for collections in directory mode
                 # Link the collections and update the entries' collections lists
                 for c in self.collections(rself=False):
                     # Loop over this collection's sub-collections
-                    for childname in c.children.keys():
+                    for childname in c._children.keys():
                         ff.write(f'{crecord[c.name]}.addchild({crecord[childname]})\n')
                     # Update every member entry's collection list to 
                     # include this collection
-                    for entry in c.entries.values():
+                    for entry in c._entries.values():
                         entry.collections.append(c.name)
             
             if verbose:
@@ -3056,7 +3199,9 @@ collectionfile  Name of the file to use for collections in directory mode
                     sys.stdout.write(entry.name + ' --> ' + fullfilename + '\n')
                 entry.write(fullfilename)
 
-        # Single-file mode with a string input
+        #############
+        # FILE MODE #
+        #############
         elif isinstance(target, str):
             # Check for an overwrite error
             if not overwrite and os.path.isfile(target):
@@ -3068,8 +3213,10 @@ collectionfile  Name of the file to use for collections in directory mode
             if verbose:
                 sys.stdout.write('MasterColleciton.save: Opening file: ' + target + '\n')
             with open(target, 'w') as ff:
-                self.save(ff, directory=False, verbose=verbose, overwrite=overwrite)
-        # Single file mode with an open file descriptor
+                self.save(ff, verbose=verbose, overwrite=overwrite, collections=collections, collectionfile=collectionfile)
+        #############
+        # FILE MODE #
+        #############
         elif hasattr(target,'write'):
             first = True
             for ii,entry in enumerate(self):
@@ -3079,17 +3226,16 @@ collectionfile  Name of the file to use for collections in directory mode
             # Write the collections
             # Keep a record of all the variable names used
             crecord = {}
-            for ii,c in enumerate(self.collections()):
-                if not isinstance(c, MasterCollection):
-                    v = 'c{:03d}'.format(ii)
-                    crecord[c.name] = v
-                    c.save(target, addimport=False, varname=v)
+            for ii,c in enumerate(self.collections(rself=False)):
+                v = 'c{:03d}'.format(ii)
+                crecord[c.name] = v
+                c.write(target=target,varname=v,addimport=False)
              
-                # Link the collections
-                for c in self.collections(rself=False):
-                    # Loop over this collection's sub-collections
-                    for childname in c.children.keys():
-                        ff.write(f'{crecord[c.name]}.addchild({crecord[childname]})\n')
+            # Link the collections
+            for c in self.collections(rself=False):
+                # Loop over this collection's sub-collections
+                for childname in c._children.keys():
+                    target.write(f'{crecord[c.name]}.addchild({crecord[childname]})\n')
 
         else:
             raise TypeError('MasterCollection.save: The target must be a string path or a file descriptor. Received: ' + str(type(target)))

@@ -27,8 +27,3 @@ With Eikosi, the record for each bibliography entry only lives in one place, so 
 
 [top](#top)
 
-
-
-## <a name=api></a> Interface
-
-[top](#top)

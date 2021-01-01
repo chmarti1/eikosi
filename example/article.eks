@@ -1,11 +1,14 @@
 import eikosi as ek
 
-entry = ek.ArticleEntry('a:2020')
+# The variable name is irrelevant.
+entry = ek.ArticleEntry('article:2020')
+# required
 entry.author = 'Art Article Author'
-entry.title = 'An example nonsense article'
+entry.title = 'An astonishingly abstract allegory'
 entry.journal = 'Sense and nonsense'
 entry.year = 2020
+entry.pages = '115-128'
+# optional (volume OR number required)
 entry.volume = 12
 entry.number = 4
-entry.pages = '115-128'
-entry.collections = ['s0']
+entry.collections = ['fiber', 'silk', 'needle']

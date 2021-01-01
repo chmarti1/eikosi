@@ -1,0 +1,14 @@
+import eikosi as ek
+
+entry = ek.MastersEntry('masters:2017')
+# required
+entry.author = 'Michael McMaster'
+entry.title = 'Multidues of Mechanical Mastication Methods'
+entry.school = 'McGill University'
+entry.year = 2017
+# optional
+entry.address = 'Montreal'
+entry.month = 'May'
+entry.day = 12
+
+entry.collections = ['tatted', 'needle', 'wool']

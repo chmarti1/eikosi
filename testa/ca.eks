@@ -1,7 +1,0 @@
-import eikosi as ek
-
-ca = ek.Collection('ca')
-caa = ek.SubCollection('caa')
-cab = ek.SubCollection('cab')
-
-ca.addchild(caa)

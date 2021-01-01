@@ -1,0 +1,15 @@
+import eikosi as ek
+
+entry = ek.ReportEntry('report:2014')
+# required
+entry.author = 'Robert Ryan and Rebecca Rolland'
+entry.title = 'Recurring Repoxia in Red Rabbits'
+entry.year = 2014
+# optional
+entry.number = '10295A'
+entry.institution = 'Rx Research'
+entry.month = 'August'
+entry.day = 12
+entry.address = 'Rayleigh'
+
+entry.collections = ['knotted', 'nylon', 'shuttle']

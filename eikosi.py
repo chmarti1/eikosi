@@ -132,9 +132,6 @@ finer control over how iteration is done, see the CollectionIterator
 class.
 """
 
-# To do...
-# (1) How to save a collection tree; current algorithm sucks
-# (2) Write the find algorithm.
 
 
 import os, sys, io

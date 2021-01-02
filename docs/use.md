@@ -1,7 +1,7 @@
-[up](../README.md) 
-2. __USE__
-3. [Entries](docs/entries.md)  
-4. [Collections](docs/collections.md)  
+[up](../README.md)  
+2. __Use__  
+3. [Entries](entries.md)  
+4. [Collections](collections.md)  
 
 # 2. <a name=top></a> Use
 

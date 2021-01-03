@@ -130,6 +130,10 @@ See important methods for working with Collections:
 All collection instances support iteration over their member entries. For
 finer control over how iteration is done, see the CollectionIterator 
 class.
+
+** CHANGELOG **
+1.0.1   1/2/2020
+Demoted "address" in ConferenceEntry to optional
 """
 
 
@@ -141,7 +145,7 @@ import eikosi as ek
 import re
 
 
-__version__ = '1.0'
+__version__ = '1.0.1'
 EXT = '.eks'
 
 
@@ -1181,8 +1185,8 @@ class ConferenceEntry(Entry):
 e = ConferenceEntry(name)
 """
     tag = '@INPROCEEDINGS'
-    mandatory = {'author', 'title', 'booktitle', 'address', 'year'}
-    optional = {'series', 'pages', 'publisher', 'month', 'day'}
+    mandatory = {'author', 'title', 'booktitle', 'year'}
+    optional = {'address', 'series', 'pages', 'publisher', 'month', 'day'}
 
     def post(self, fatal=False, verbose=False, strict=False):
         """Post processing on entry objects.

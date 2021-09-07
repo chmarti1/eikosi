@@ -134,6 +134,10 @@ class.
 ** CHANGELOG **
 1.0.1   1/2/2020
 Demoted "address" in ConferenceEntry to optional
+
+1.0.2   9/6/2021
+Corrected bug on line 3014. Replaced "sys.stdout(...)" with 
+    "sys.stdout.write(...)"
 """
 
 
@@ -3011,7 +3015,7 @@ cause the process to halt with an exception.
         # membership in collections
         if _top:
             if verbose:
-                sys.stdout('MasterCollection.load: Linking entries to their collections.\n')
+                sys.stdout.write('MasterCollection.load: Linking entries to their collections.\n')
             # Loop through all of the entries in the MasterCollection
             for entry in self:
                 # If the Entry's collections member is not a list, raise warning and move on.

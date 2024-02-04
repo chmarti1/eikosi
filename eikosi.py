@@ -149,7 +149,7 @@ import eikosi as ek
 import re
 
 
-__version__ = '1.0.2'
+__version__ = '1.0.3'
 EXT = '.eks'
 
 
@@ -2446,10 +2446,10 @@ were found matching the target.
         # If running recursively,
         if recurse:
             # Keep track of whether the entry was ever found
-            nfound = self.remove(target, recurse=False, fatal=False)
+            nfound = self.remove(entryname, recurse=False, fatal=False)
             # Loop through all child Collections
             for c in self.collections():
-                nfound += c.remove(target, recurse=False, fatal=False)
+                nfound += c.remove(entryname, recurse=False, fatal=False)
             # If entries were found, that invalidates all previous search 
             # records.
             if nfound > 0:

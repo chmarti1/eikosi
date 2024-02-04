@@ -41,7 +41,7 @@ setuptools.setup(
     version=eikosi.__version__,
     author="Christopher R. Martin",
     author_email="crm28@psu.edu",
-    description="A small example package",
+    description="Yet another bibliographic management package",
     long_description=long_description,
     long_description_content_type="text/markdown",
     license = "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
